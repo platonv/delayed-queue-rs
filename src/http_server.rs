@@ -9,7 +9,7 @@ use crate::message::Message;
 use actix_web::{web, App, HttpServer, Responder};
 
 pub struct DelayedQueueHttpServer {
-    delayed_queue: Arc<Mutex<DelayedQueuePostgres>>,
+    delayed_queue: DelayedQueuePostgres,
 }
 
 #[derive(Deserialize)]
@@ -22,9 +22,7 @@ struct AckData {
 
 impl DelayedQueueHttpServer {
     pub fn new<'b>(delayed_queue: DelayedQueuePostgres) -> Self {
-        Self {
-            delayed_queue: Arc::new(Mutex::new(delayed_queue)),
-        }
+        Self { delayed_queue }
     }
 
     pub async fn start(&self) -> std::io::Result<()> {
