@@ -1,5 +1,3 @@
-use std::sync::{Arc, Mutex};
-
 use anyhow::Result;
 use sqlx::postgres::PgPool;
 
@@ -37,48 +35,44 @@ impl DelayedQueuePostgres {
         messages.into_iter().collect()
     }
 
-    pub async fn poll(self: &Self, kind: &str, now: u64) -> Result<Option<Message>> {
+    pub async fn poll(self: &Self, now: u64, kind: Option<&str>) -> Result<Vec<Message>> {
         Box::pin(async move {
-            let message_opt = self.get_scheduled(kind, now).await?;
+            let message_opt = self.get_scheduled(now, kind).await?;
 
             match message_opt {
                 Some(message) => {
                     let lock_result = self.lock(&message.key, kind, message.scheduled_at).await?;
 
                     if lock_result {
-                        Ok(Some(message))
+                        Ok(vec![message]
+                            .into_iter()
+                            .chain(self.poll(now, kind).await?.into_iter())
+                            .collect())
                     } else {
-                        Ok(self.poll(kind, now).await?)
+                        Ok(self.poll(now, kind).await?)
                     }
                 }
-                None => Ok(None),
+                None => Ok(Vec::new()),
             }
         })
         .await
     }
 
-    pub async fn ack(
-        self: &Self,
-        key: &str,
-        kind: &str,
-        created_at: u64,
-        scheduled_at: u64,
-    ) -> Result<()> {
-        sqlx::query!(
+    pub async fn ack(self: &Self, key: &str, kind: &str, created_at: &u64) -> Result<u64> {
+        let res = sqlx::query!(
             r#"
 			DELETE FROM delayed_queue
 				WHERE
-				pkey = $1 AND pkind = $2 AND created_at = $3 AND scheduled_at = $4
+				pkey = $1 AND pkind = $2 AND created_at = $3
 			"#,
             key,
             kind,
-            created_at as i64,
-            scheduled_at as i64
+            *created_at as i64,
         )
         .execute(&self.pool)
         .await?;
 
-        Ok(())
+        Ok(res.rows_affected())
     }
 
     pub async fn schedule_message(self: &Self, message: &Message) -> Result<()> {
@@ -101,21 +95,24 @@ impl DelayedQueuePostgres {
         Ok(())
     }
 
-    async fn get_scheduled(self: &Self, kind: &str, now: u64) -> Result<Option<Message>> {
+    async fn get_scheduled(self: &Self, now: u64, kind: Option<&str>) -> Result<Option<Message>> {
         let result = sqlx::query!(
             r#"
-			SELECT pkey, payload, scheduled_at, created_at
+			SELECT pkey, pkind, payload, scheduled_at, created_at
 				FROM delayed_queue
 				WHERE
-				pkind = $1 AND scheduled_at <= $2
+                (CASE 
+                    WHEN $2 != '' THEN pkind = $2 AND scheduled_at <= $1
+                    ELSE scheduled_at <= $1
+                END)
 				ORDER BY scheduled_at
 			"#,
-            kind,
-            now as i64
+            now as i64,
+            kind
         )
         .map(|row| Message {
             key: row.pkey.clone(),
-            kind: kind.to_string(),
+            kind: row.pkind.clone(),
             payload: row.payload.clone(),
             scheduled_at: row.scheduled_at as u64,
             scheduled_at_initially: row.scheduled_at as u64,
@@ -127,22 +124,25 @@ impl DelayedQueuePostgres {
         Ok(result)
     }
 
-    async fn lock(self: &Self, key: &str, kind: &str, scheduled_at: u64) -> Result<bool> {
+    async fn lock(self: &Self, key: &str, kind: Option<&str>, scheduled_at: u64) -> Result<bool> {
         let result = sqlx::query!(
             r#"
 			UPDATE delayed_queue
 			SET
 			scheduled_at = $4
 			WHERE
-			pkey = $1 AND
-			pkind = $2 AND
-			scheduled_at = $3
+            (
+                CASE
+                    WHEN $2 != '' THEN pkey = $1 AND pkind = $2 AND scheduled_at = $3
+                    ELSE pkey = $1 AND scheduled_at = $3
+                END
+            )
 			;
 			"#,
             key,
             kind,
             scheduled_at as i64,
-            (scheduled_at as i64) + 60 * 5
+            (scheduled_at as i64) + 5 // retry interval
         )
         .execute(&self.pool)
         .await?;

@@ -9,7 +9,7 @@ use crate::message::Message;
 use actix_web::{web, App, HttpServer, Responder};
 
 pub struct DelayedQueueHttpServer {
-    delayed_queue: DelayedQueuePostgres,
+    delayed_queue: Arc<DelayedQueuePostgres>,
 }
 
 #[derive(Deserialize)]
@@ -21,7 +21,7 @@ struct AckData {
 }
 
 impl DelayedQueueHttpServer {
-    pub fn new<'b>(delayed_queue: DelayedQueuePostgres) -> Self {
+    pub fn new(delayed_queue: Arc<DelayedQueuePostgres>) -> Self {
         Self { delayed_queue }
     }
 
@@ -69,7 +69,7 @@ impl DelayedQueueHttpServer {
             .unwrap()
             .as_secs();
 
-        let res = data.lock().unwrap().poll(&kind, now).await;
+        let res = data.lock().unwrap().poll(now, Some(&kind)).await;
 
         format!("{:?}", res)
     }
@@ -81,12 +81,7 @@ impl DelayedQueueHttpServer {
         let ack_data = ack_data.into_inner();
         data.lock()
             .unwrap()
-            .ack(
-                &ack_data.key,
-                &ack_data.kind,
-                ack_data.created_at,
-                ack_data.scheduled_at,
-            )
+            .ack(&ack_data.key, &ack_data.kind, &ack_data.created_at)
             .await
             .unwrap();
         format!("Acked")
