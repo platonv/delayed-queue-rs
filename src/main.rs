@@ -86,5 +86,7 @@ async fn main() -> Result<()> {
         }
     }
 
+    pgPool.close().await;
+
     Ok(())
 }
