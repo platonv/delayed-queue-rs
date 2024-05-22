@@ -1,23 +1,24 @@
+use std::sync::{Arc, Mutex};
+
 use anyhow::Result;
 use sqlx::postgres::PgPool;
 
 use crate::message::Message;
 
+#[derive(Clone)]
 pub struct DelayedQueuePostgres {
     pool: PgPool,
 }
 
 impl DelayedQueuePostgres {
-    pub async fn new(database_url: &str) -> Result<Self> {
-        let pool = PgPool::connect(&database_url).await?;
-
+    pub async fn new(pool: PgPool) -> Result<Self> {
         Ok(Self { pool })
     }
 
     pub async fn get_messages(self: &Self) -> Result<Vec<Message>> {
         let messages = sqlx::query!(
             r#"
-            SELECT pkey, pkind, payload, scheduled_at, scheduled_at_initially, created_at FROM DelayedQueue ORDER BY created_at
+            SELECT pkey, pkind, payload, scheduled_at, scheduled_at_initially, created_at FROM delayed_queue ORDER BY created_at
             "#
         )
         .map(|row| {
@@ -65,7 +66,7 @@ impl DelayedQueuePostgres {
     ) -> Result<()> {
         sqlx::query!(
             r#"
-			DELETE FROM DelayedQueue
+			DELETE FROM delayed_queue
 				WHERE
 				pkey = $1 AND pkind = $2 AND created_at = $3 AND scheduled_at = $4
 			"#,
@@ -83,7 +84,7 @@ impl DelayedQueuePostgres {
     pub async fn schedule_message(self: &Self, message: &Message) -> Result<()> {
         sqlx::query!(
             r#"
-            INSERT INTO DelayedQueue
+            INSERT INTO delayed_queue
             (pkey, pkind, payload, scheduled_at, scheduled_at_initially, created_at)
             VALUES ($1, $2, $3, $4, $5, $6)
             "#,
@@ -104,7 +105,7 @@ impl DelayedQueuePostgres {
         let result = sqlx::query!(
             r#"
 			SELECT pkey, payload, scheduled_at, created_at
-				FROM DelayedQueue
+				FROM delayed_queue
 				WHERE
 				pkind = $1 AND scheduled_at <= $2
 				ORDER BY scheduled_at
@@ -129,7 +130,7 @@ impl DelayedQueuePostgres {
     async fn lock(self: &Self, key: &str, kind: &str, scheduled_at: u64) -> Result<bool> {
         let result = sqlx::query!(
             r#"
-			UPDATE DelayedQueue
+			UPDATE delayed_queue
 			SET
 			scheduled_at = $4
 			WHERE

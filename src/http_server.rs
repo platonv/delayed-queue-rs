@@ -3,7 +3,7 @@ use serde::Deserialize;
 use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
 
-use crate::delayed_queue_postgres::DelayedQueuePostgres;
+use crate::delayed_queue::DelayedQueuePostgres;
 use crate::message::Message;
 
 use actix_web::{web, App, HttpServer, Responder};
@@ -21,7 +21,7 @@ struct AckData {
 }
 
 impl DelayedQueueHttpServer {
-    pub fn new(delayed_queue: DelayedQueuePostgres) -> Self {
+    pub fn new<'b>(delayed_queue: DelayedQueuePostgres) -> Self {
         Self {
             delayed_queue: Arc::new(Mutex::new(delayed_queue)),
         }
@@ -30,6 +30,7 @@ impl DelayedQueueHttpServer {
     pub async fn start(&self) -> std::io::Result<()> {
         let delayed_queue = web::Data::new(self.delayed_queue.clone());
 
+        println!("Starting HTTP server on port 9876");
         HttpServer::new(move || {
             App::new()
                 .wrap(Logger::default())
@@ -39,7 +40,7 @@ impl DelayedQueueHttpServer {
                 .route("/poll/{kind}", web::get().to(Self::poll))
                 .route("/ack", web::post().to(Self::ack))
         })
-        .bind("127.0.0.1:9876")?
+        .bind("0.0.0.0:9876")?
         .run()
         .await
     }

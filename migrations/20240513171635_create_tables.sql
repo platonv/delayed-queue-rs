@@ -1,4 +1,4 @@
-CREATE TABLE DelayedQueue (
+CREATE TABLE delayed_queue (
     pkey VARCHAR(200) NOT NULL,
     pkind VARCHAR(100) NOT NULL,
     payload BYTEA NOT NULL,
@@ -8,4 +8,13 @@ CREATE TABLE DelayedQueue (
     PRIMARY KEY (pkey, pkind)
 );
 
-CREATE INDEX DelayedQueue__KindPlusScheduledAtIndex ON DelayedQueue (pkind, scheduled_at);
+CREATE TABLE webhooks (
+    id VARCHAR(200) NOT NULL,
+    url VARCHAR(200) NOT NULL,
+    fails_count INT NOT NULL,
+    created_at BIGINT NOT NULL,
+    updated_at BIGINT NOT NULL,
+    PRIMARY KEY (id)
+);
+
+CREATE INDEX delayed_queue__kind_scheduled_at_index ON delayed_queue (pkind, scheduled_at);
