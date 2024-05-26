@@ -6,7 +6,7 @@ edition = "2018"
 [dependencies]
 uuid = { version = "1.8.0", features = ["v4", "fast-rng", "macro-diagnostics"] }
 anyhow = "1.0"
-tokio = { version = "1.20.0", features = ["rt", "macros"]}
+tokio = { version = "1.20.0", features = ["full"]}
 dotenvy = "0.15.0"
 sqlx = { version = "0.7", features = [ "runtime-tokio", "postgres" ] }
 clap = { version = "4.5.4", features = [ "cargo" ] }
@@ -14,3 +14,6 @@ actix-web = "4.0.0"
 actix-rt = "2.2.0"
 env_logger = "0.9.0"
 serde = { version = "1.0.172-alpha.0" }
+serde_json = { version = "1.0.117" }
+derive_more = "0.99.17"
+reqwest = "0.11"

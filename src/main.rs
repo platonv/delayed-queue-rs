@@ -18,9 +18,8 @@ async fn main() -> Result<()> {
 
     let pg_pool = sqlx::PgPool::connect(&database_url).await?;
 
-    let delayed_queue: Arc<DelayedQueuePostgres> =
-        Arc::new(DelayedQueuePostgres::new(pg_pool.clone()).await?);
-    let webhooks: WebhooksPostgres = WebhooksPostgres::new(pg_pool.clone()).await?;
+    let delayed_queue = Arc::new(DelayedQueuePostgres::new(pg_pool.clone()).await?);
+    let webhooks = Arc::new(WebhooksPostgres::new(pg_pool.clone()).await?);
 
     let matches = command!()
         .subcommand(
@@ -75,7 +74,9 @@ async fn main() -> Result<()> {
             let mut interval = tokio::time::interval(std::time::Duration::from_secs(2));
 
             let cloned_delayed_queue = Arc::clone(&delayed_queue);
+            let cloned_webhooks = Arc::clone(&webhooks);
 
+            // TODO: This is from just playing around. Structure this better
             tokio::spawn(async move {
                 loop {
                     interval.tick().await;
@@ -87,22 +88,31 @@ async fn main() -> Result<()> {
                         .poll(now, None)
                         .await
                         .expect("Poll failed");
+                    let hooks = cloned_webhooks
+                        .get_all()
+                        .await
+                        .expect("Get webhooks failed");
 
-                    messages.into_iter().for_each(|message| {
-                        let d = Arc::clone(&cloned_delayed_queue);
+                    for message in messages.iter() {
                         println!("Polled message: {:?}", message);
-                        tokio::spawn(async move {
-                            let res = d
-                                .ack(&message.key, &message.kind, &message.created_at)
-                                .await;
-                            println!("Ack result for {:?}: {:?}", &message.key, res)
-                        });
-                    });
+
+                        println!("{:?}", hooks);
+                        for hook in hooks.iter() {
+                            println!("{:?}", hook);
+                            let res = hook.send(message).await;
+                            println!("Webhook result for {:?}: {:?}", message.key, res)
+                        }
+
+                        let res = cloned_delayed_queue
+                            .ack(&message.key, &message.kind, &message.created_at)
+                            .await;
+                        println!("Ack result for {:?}: {:?}", &message.key, res)
+                    }
                 }
             });
 
-            let server = DelayedQueueHttpServer::new(Arc::clone(&delayed_queue));
-            server.start().await?;
+            let server = DelayedQueueHttpServer::new();
+            server.start(&delayed_queue, &webhooks).await?;
         }
         _ => {
             println!("Invalid command");

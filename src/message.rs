@@ -1,7 +1,9 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use serde::Serialize;
 use uuid::Uuid;
 
+#[derive(Serialize, Clone)]
 pub struct Message {
     pub key: String,
     pub kind: String,

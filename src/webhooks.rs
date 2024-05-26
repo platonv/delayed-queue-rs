@@ -1,9 +1,10 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::Result;
+use serde::{Deserialize, Serialize};
 use sqlx::postgres::PgPool;
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Webhook {
     pub id: String,
     pub url: String,
@@ -52,8 +53,20 @@ impl Webhook {
                 .as_secs(),
         }
     }
+
+    pub async fn send<T: Serialize>(&self, data: &T) -> Result<()> {
+        let client = reqwest::Client::new();
+        println!("Sending to {}", &self.url);
+        client
+            .post(&self.url)
+            .body(serde_json::to_string(data)?)
+            .send()
+            .await?;
+        Ok(())
+    }
 }
 
+#[derive(Clone)]
 pub struct WebhooksPostgres {
     pool: PgPool,
 }
@@ -64,7 +77,7 @@ impl WebhooksPostgres {
     }
 
     pub async fn get_all(self: &Self) -> Result<Vec<Webhook>> {
-        let webhooks = sqlx::query!(r#"SELECT * FROM Webhooks"#)
+        let webhooks = sqlx::query!(r#"SELECT * FROM webhooks"#)
             .map(|row| {
                 Ok(Webhook {
                     id: row.id.clone(),
@@ -81,9 +94,10 @@ impl WebhooksPostgres {
     }
 
     pub async fn create(self: &Self, webhook: &Webhook) -> Result<()> {
+        println!("Creating webhook: {:?}", webhook);
         sqlx::query!(
             r#"
-			INSERT INTO Webhooks (id, url, fails_count, created_at, updated_at) VALUES ($1, $2, $3, $4, $5)
+			INSERT INTO webhooks (id, url, fails_count, created_at, updated_at) VALUES ($1, $2, $3, $4, $5)
 			"#,
             webhook.id,
             webhook.url,
@@ -100,7 +114,7 @@ impl WebhooksPostgres {
     pub async fn update(self: &Self, webhook: &Webhook) -> Result<()> {
         sqlx::query!(
             r#"
-			UPDATE Webhooks
+			UPDATE webhooks
 				SET
 				url = $2,
 				fails_count = $3,
