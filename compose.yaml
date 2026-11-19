@@ -1,0 +1,20 @@
+# Databases for running the test suite locally:
+#
+#   docker compose up -d
+#   export DALLY_TEST_POSTGRES_URL=postgres://postgres:dally@localhost:55432/postgres
+#   export DALLY_TEST_REDIS_URL=redis://localhost:56379
+#   cargo test --workspace --all-features
+
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_PASSWORD: dally
+    ports:
+      - "55432:5432"
+
+  redis:
+    image: redis:8
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "56379:6379"
