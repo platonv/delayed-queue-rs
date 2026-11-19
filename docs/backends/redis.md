@@ -73,6 +73,7 @@ the subscription drops, polls still find due messages within a second.
 
 ## Metrics
 
-The Redis backend does not report `dally_queue_oldest_due_seconds`: once a due
-message moves to the ready set, its score no longer holds its `run_at`, so the
-answer would cost a scan. Every other metric works as with the other backends.
+The Redis backend does not report `dally_queue_oldest_due_seconds`. Due
+messages in the ready set are ordered by priority, not by `run_at`, so finding
+the oldest one would mean scanning the whole set on every scrape. Every other
+metric works as with the other backends.
