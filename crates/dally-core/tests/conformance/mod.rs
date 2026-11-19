@@ -58,6 +58,7 @@ macro_rules! conformance_tests {
             long_poll_times_out_empty,
             prune_deletes_only_old_finished_messages,
             storage_clock_is_sane,
+            oldest_due_measures_waiting_time,
         );
     };
     (@each $setup:path; $($name:ident),* $(,)?) => {
@@ -824,5 +825,37 @@ pub async fn storage_clock_is_sane(storage: Arc<dyn Storage>) {
     assert!(
         skew < chrono::Duration::seconds(5),
         "storage clock is {skew} off"
+    );
+}
+
+/// `oldest_due` is optional: `None` means the backend does not support it.
+pub async fn oldest_due_measures_waiting_time(storage: Arc<dyn Storage>) {
+    let service = service(Arc::clone(&storage));
+    let emails = queue("emails");
+    let later = queue("later");
+    let a_minute_ago = Utc::now() - chrono::Duration::seconds(60);
+    let overdue = ScheduleRequest {
+        run_at: Some(a_minute_ago),
+        ..message(json!(1))
+    };
+    let delayed = ScheduleRequest {
+        delay: Some(Duration::from_secs(3600)),
+        ..message(json!(3))
+    };
+    schedule_one(&service, &emails, overdue).await;
+    schedule_one(&service, &emails, message(json!(2))).await;
+    schedule_one(&service, &later, delayed).await;
+
+    let Some(oldest) = storage.oldest_due().await.expect("oldest due") else {
+        return;
+    };
+    let waited = oldest.get(&emails).copied().unwrap_or_default();
+    assert!(
+        waited >= Duration::from_secs(55) && waited < Duration::from_secs(70),
+        "oldest due message in emails waited {waited:?}, expected about 60s"
+    );
+    assert!(
+        !oldest.contains_key(&later),
+        "nothing in `later` is due yet"
     );
 }

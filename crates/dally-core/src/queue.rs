@@ -12,6 +12,11 @@ use crate::error::{Error, Result};
 ///
 /// The character set is deliberately small so names are safe in URLs, Redis
 /// keys and metric labels without escaping.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[cfg_attr(
+    feature = "openapi",
+    schema(value_type = String, pattern = "^[A-Za-z0-9._-]{1,100}$", example = "emails")
+)]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(try_from = "String", into = "String")]
 pub struct QueueName(String);
@@ -71,6 +76,7 @@ impl From<QueueName> for String {
 }
 
 /// A queue as stored, with its settings.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Queue {
     /// The queue's name.
@@ -86,12 +92,14 @@ pub struct Queue {
 
 /// The settings of a queue. Every field has a default, so a queue created
 /// implicitly by scheduling a message works without configuration.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct QueueSettings {
     /// How long a lease lasts. A message that is not acked or nacked in this
     /// time is handed to another worker.
     #[serde(with = "humantime_serde")]
+    #[cfg_attr(feature = "openapi", schema(value_type = String, example = "30s"))]
     pub visibility_timeout: Duration,
 
     /// How many times a message is attempted before it is marked dead.
@@ -103,6 +111,7 @@ pub struct QueueSettings {
     /// How long finished messages are kept before they are deleted. This is
     /// also how long idempotency keys are remembered.
     #[serde(with = "humantime_serde")]
+    #[cfg_attr(feature = "openapi", schema(value_type = String, example = "7days"))]
     pub retention: Duration,
 
     /// A paused queue accepts new messages but delivers none.
@@ -149,14 +158,17 @@ impl QueueSettings {
 
 /// Exponential backoff with jitter: attempt `n` waits about
 /// `min(base * 2^(n - 1), cap)`, give or take 20%.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Backoff {
     /// The delay after the first failed attempt.
     #[serde(with = "humantime_serde")]
+    #[cfg_attr(feature = "openapi", schema(value_type = String, example = "5s"))]
     pub base: Duration,
     /// The longest delay between attempts.
     #[serde(with = "humantime_serde")]
+    #[cfg_attr(feature = "openapi", schema(value_type = String, example = "1h"))]
     pub cap: Duration,
 }
 
@@ -182,6 +194,7 @@ impl Backoff {
 }
 
 /// Where and how to push messages from a queue.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PushSettings {
@@ -194,6 +207,7 @@ pub struct PushSettings {
 
     /// How long to wait for the endpoint to respond.
     #[serde(default = "PushSettings::default_timeout", with = "humantime_serde")]
+    #[cfg_attr(feature = "openapi", schema(value_type = String, example = "30s"))]
     pub timeout: Duration,
 
     /// How many requests to have in flight at once, per server.
@@ -224,6 +238,7 @@ impl PushSettings {
 }
 
 /// How many messages a queue holds in each status.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct QueueStats {
     /// Waiting to run, now or later.
@@ -239,6 +254,7 @@ pub struct QueueStats {
 }
 
 /// A queue together with its message counts.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct QueueSummary {
     /// The queue.

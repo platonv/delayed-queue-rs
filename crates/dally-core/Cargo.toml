@@ -13,6 +13,8 @@ default = []
 postgres = ["dep:sqlx", "sqlx/postgres"]
 redis = ["dep:redis", "dep:futures-util", "dep:rustls", "dep:url"]
 sqlite = ["dep:sqlx", "sqlx/sqlite"]
+# ToSchema derives on the wire types, for generating an OpenAPI spec.
+openapi = ["dep:utoipa"]
 
 [dependencies]
 async-trait.workspace = true
@@ -29,6 +31,7 @@ thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 url = { workspace = true, optional = true }
+utoipa = { workspace = true, optional = true }
 uuid.workspace = true
 
 [dev-dependencies]

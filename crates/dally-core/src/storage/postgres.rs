@@ -8,6 +8,7 @@
 //! All timestamps come from the database's `now()`, so servers with skewed
 //! clocks still agree on what is due.
 
+use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -494,6 +495,28 @@ impl Storage for PostgresStorage {
         .await?;
 
         Ok(result.rows_affected())
+    }
+
+    async fn oldest_due(&self) -> Result<Option<BTreeMap<QueueName, Duration>>> {
+        let rows: Vec<(String, f64)> = sqlx::query_as(
+            "SELECT queue, EXTRACT(EPOCH FROM now() - min(run_at))::float8
+             FROM dally_messages
+             WHERE status = 'scheduled' AND run_at <= now()
+             GROUP BY queue",
+        )
+        .fetch_all(&self.pool)
+        .await?;
+
+        let oldest = rows
+            .into_iter()
+            .map(|(queue, seconds)| {
+                Ok((
+                    QueueName::new(queue)?,
+                    Duration::from_secs_f64(seconds.max(0.0)),
+                ))
+            })
+            .collect::<Result<_>>()?;
+        Ok(Some(oldest))
     }
 
     fn subscribe(&self, queue: &QueueName) -> Subscription {

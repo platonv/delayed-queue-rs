@@ -8,7 +8,9 @@
 //!
 //! Every backend runs the same conformance tests in `tests/conformance`.
 
+use std::collections::BTreeMap;
 use std::sync::Arc;
+use std::time::Duration;
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
@@ -97,6 +99,17 @@ pub trait Storage: Send + Sync + 'static {
     /// Deletes finished messages older than their queue's retention. Returns
     /// how many were deleted.
     async fn prune(&self) -> Result<u64>;
+
+    /// For each queue with due messages, how long the oldest of them has been
+    /// waiting: the storage clock's now minus the earliest `run_at` among due
+    /// scheduled messages. Queues with nothing due are left out. Used for the
+    /// `dally_queue_oldest_due_seconds` metric.
+    ///
+    /// Returns `None` when the backend cannot answer this cheaply, which is
+    /// the default.
+    async fn oldest_due(&self) -> Result<Option<BTreeMap<QueueName, Duration>>> {
+        Ok(None)
+    }
 
     /// Starts listening for newly scheduled messages in `queue`.
     fn subscribe(&self, queue: &QueueName) -> Subscription;

@@ -13,6 +13,8 @@ use crate::queue::QueueName;
 
 /// A message id. Ids are UUIDv7, so sorting them sorts messages by creation
 /// time.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "openapi", schema(value_type = String, format = Uuid))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct MessageId(Uuid);
@@ -53,6 +55,8 @@ impl FromStr for MessageId {
 /// The token that proves a worker holds a message. It changes every time the
 /// message is leased, so a worker whose lease expired cannot ack a message
 /// that was handed to someone else.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "openapi", schema(value_type = String, example = "0f8e2c4b9d1a4e7f8a3b5c6d7e8f9a0b"))]
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct LeaseToken(String);
@@ -76,6 +80,7 @@ impl From<String> for LeaseToken {
 }
 
 /// Where a message is in its lifecycle. See `docs/design.md` for the diagram.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Status {
@@ -137,6 +142,7 @@ impl FromStr for Status {
 }
 
 /// A message as stored.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Message {
     /// The message's id.
@@ -155,6 +161,7 @@ pub struct Message {
     pub max_attempts: u32,
     /// How long each lease lasts.
     #[serde(with = "humantime_serde")]
+    #[cfg_attr(feature = "openapi", schema(value_type = String, example = "30s"))]
     pub visibility_timeout: Duration,
     /// The key that prevents duplicates, if one was given.
     pub idempotency_key: Option<String>,
@@ -173,6 +180,7 @@ pub struct Message {
 }
 
 /// A message handed to a worker, with the token it needs to ack or nack it.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Leased {
     /// The message.
@@ -195,6 +203,7 @@ pub enum RunAt {
 }
 
 /// A request to schedule a message, as clients send it.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ScheduleRequest {
@@ -207,6 +216,7 @@ pub struct ScheduleRequest {
         with = "humantime_serde",
         skip_serializing_if = "Option::is_none"
     )]
+    #[cfg_attr(feature = "openapi", schema(value_type = Option<String>, example = "10m"))]
     pub delay: Option<Duration>,
 
     /// Run at this time. Cannot be combined with `delay`.
@@ -232,6 +242,7 @@ pub struct ScheduleRequest {
         with = "humantime_serde",
         skip_serializing_if = "Option::is_none"
     )]
+    #[cfg_attr(feature = "openapi", schema(value_type = Option<String>, example = "2m"))]
     pub visibility_timeout: Option<Duration>,
 }
 
@@ -299,6 +310,7 @@ pub struct NewMessage {
 }
 
 /// The result of scheduling one message.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Scheduled {
     /// The stored message: the new one, or the existing one with the same
@@ -309,6 +321,7 @@ pub struct Scheduled {
 }
 
 /// What a worker reports when an attempt fails.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct NackRequest {
@@ -323,6 +336,7 @@ pub struct NackRequest {
         with = "humantime_serde",
         skip_serializing_if = "Option::is_none"
     )]
+    #[cfg_attr(feature = "openapi", schema(value_type = Option<String>, example = "30s"))]
     pub retry_in: Option<Duration>,
 }
 
@@ -350,6 +364,7 @@ pub struct MessageFilter {
 }
 
 /// One page of a listing, newest first.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Page<T> {
     /// The items on this page.

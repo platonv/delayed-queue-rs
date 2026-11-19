@@ -36,6 +36,7 @@
 //! plain numbers, unlike SQLite's text dates. Sub-millisecond precision is
 //! dropped.
 
+use std::collections::BTreeMap;
 use std::fs::{File, OpenOptions, TryLockError};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -618,6 +619,24 @@ impl Storage for SqliteStorage {
         .await?;
 
         Ok(result.rows_affected())
+    }
+
+    async fn oldest_due(&self) -> Result<Option<BTreeMap<QueueName, Duration>>> {
+        let rows: Vec<(String, i64)> = sqlx::query_as(
+            "SELECT queue, ?1 - min(run_at)
+             FROM dally_messages
+             WHERE status = 'scheduled' AND run_at <= ?1
+             GROUP BY queue",
+        )
+        .bind(now_millis())
+        .fetch_all(&self.reader)
+        .await?;
+
+        let oldest = rows
+            .into_iter()
+            .map(|(queue, waited)| Ok((QueueName::new(queue)?, from_millis(waited))))
+            .collect::<Result<_>>()?;
+        Ok(Some(oldest))
     }
 
     fn subscribe(&self, queue: &QueueName) -> Subscription {
