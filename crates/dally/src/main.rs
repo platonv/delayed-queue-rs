@@ -1,6 +1,8 @@
 //! The `dally` command line: runs the server, and talks to a running one.
 
 mod cli;
+#[cfg(feature = "otel")]
+mod telemetry;
 
 use std::path::PathBuf;
 
@@ -8,6 +10,8 @@ use anyhow::Context;
 use clap::{Parser, Subcommand, ValueEnum};
 use dally_server::Config;
 use tracing_subscriber::EnvFilter;
+use tracing_subscriber::layer::{Layer, SubscriberExt};
+use tracing_subscriber::util::SubscriberInitExt;
 
 #[derive(Debug, Parser)]
 #[command(version, about)]
@@ -65,11 +69,21 @@ enum LogFormat {
     Json,
 }
 
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
+fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
-    init_logging(cli.log_format);
+    // Set up logging before the runtime starts and keep the guard until it
+    // has stopped: trace export uses a blocking HTTP client, which must not
+    // be created or flushed from inside async code.
+    let _logging = init_logging(cli.log_format);
 
+    tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .context("starting the async runtime")?
+        .block_on(run(cli))
+}
+
+async fn run(cli: Cli) -> anyhow::Result<()> {
     match cli.command {
         Command::Server { config } => {
             let config = Config::load(config.as_deref()).context("loading configuration")?;
@@ -84,16 +98,33 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Logs at `info` unless `RUST_LOG` says otherwise.
-fn init_logging(format: LogFormat) {
+/// What has to stay alive while the program logs.
+struct LoggingGuard {
+    #[cfg(feature = "otel")]
+    _telemetry: telemetry::Guard,
+}
+
+/// Logs at `info` unless `RUST_LOG` says otherwise. Logs go to stderr so that
+/// `--json` output on stdout stays parseable.
+fn init_logging(format: LogFormat) -> LoggingGuard {
     let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
-    // Logs go to stderr so that `--json` output on stdout stays parseable.
-    let subscriber = tracing_subscriber::fmt()
-        .with_env_filter(filter)
-        .with_writer(std::io::stderr);
-    match format {
-        LogFormat::Pretty => subscriber.init(),
-        LogFormat::Json => subscriber.json().init(),
+    let output = tracing_subscriber::fmt::layer().with_writer(std::io::stderr);
+    let output = match format {
+        LogFormat::Pretty => output.boxed(),
+        LogFormat::Json => output.json().boxed(),
+    };
+    let subscriber = tracing_subscriber::registry().with(filter).with(output);
+
+    #[cfg(feature = "otel")]
+    {
+        let (export, guard) = telemetry::layer();
+        subscriber.with(export).init();
+        LoggingGuard { _telemetry: guard }
+    }
+    #[cfg(not(feature = "otel"))]
+    {
+        subscriber.init();
+        LoggingGuard {}
     }
 }
 

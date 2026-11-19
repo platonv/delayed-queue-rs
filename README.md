@@ -108,6 +108,7 @@ happens and how to deal with it.
 - [Design](docs/design.md): how dally works and why
 - [Delivery semantics](docs/semantics.md)
 - [Push delivery](docs/push.md)
+- [Running in production](docs/operations.md): storage, API keys, metrics, tracing
 - [Contributing](CONTRIBUTING.md)
 
 ## License
