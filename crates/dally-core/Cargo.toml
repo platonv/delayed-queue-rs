@@ -1,0 +1,32 @@
+[package]
+name = "dally-core"
+description = "Domain types, rules and storage backends for the dally job queue"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[features]
+default = []
+postgres = ["dep:sqlx", "sqlx/postgres"]
+
+[dependencies]
+async-trait.workspace = true
+chrono.workspace = true
+fastrand.workspace = true
+humantime-serde.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sqlx = { workspace = true, optional = true }
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["full"] }
+
+[lints]
+workspace = true

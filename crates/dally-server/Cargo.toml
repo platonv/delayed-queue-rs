@@ -1,0 +1,34 @@
+[package]
+name = "dally-server"
+description = "HTTP server and background tasks for the dally job queue"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[features]
+default = []
+postgres = ["dally-core/postgres"]
+
+[dependencies]
+axum.workspace = true
+chrono.workspace = true
+dally-core.workspace = true
+figment.workspace = true
+humantime-serde.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio = { workspace = true, features = ["full"] }
+tower-http.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+dally-core = { workspace = true, features = ["postgres"] }
+reqwest.workspace = true
+uuid.workspace = true
+
+[lints]
+workspace = true

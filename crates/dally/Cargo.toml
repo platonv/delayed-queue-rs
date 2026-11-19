@@ -1,0 +1,25 @@
+[package]
+name = "dally"
+description = "A job queue server: schedule work over HTTP, run it later"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+readme = "../../README.md"
+
+[features]
+default = ["postgres"]
+postgres = ["dally-server/postgres"]
+
+[dependencies]
+anyhow.workspace = true
+clap.workspace = true
+dally-server.workspace = true
+tokio = { workspace = true, features = ["full"] }
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
+[lints]
+workspace = true
