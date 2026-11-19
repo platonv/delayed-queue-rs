@@ -1,0 +1,35 @@
+[package]
+name = "dally-client"
+description = "Rust client and worker for the dally job queue"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+keywords = ["queue", "jobs", "background", "worker", "scheduler"]
+categories = ["asynchronous", "web-programming::http-client"]
+
+[dependencies]
+chrono.workspace = true
+# No backend features: the client only needs the wire types.
+dally-core.workspace = true
+humantime-serde.workspace = true
+reqwest = { workspace = true, features = ["rustls", "query"] }
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio = { workspace = true, features = ["rt"] }
+tracing.workspace = true
+
+[dev-dependencies]
+axum.workspace = true
+dally-core = { workspace = true, features = ["postgres"] }
+dally-server.workspace = true
+sqlx = { workspace = true, features = ["postgres"] }
+tokio = { workspace = true, features = ["full"] }
+tracing-subscriber.workspace = true
+uuid.workspace = true
+
+[lints]
+workspace = true
