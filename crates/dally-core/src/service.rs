@@ -54,18 +54,64 @@ impl Default for PollRequest {
     }
 }
 
+/// Hears about every message that moves through a [`Service`], whichever
+/// transport or background task moved it. The server uses this for metrics.
+///
+/// Every method has an empty default, so an observer only implements what it
+/// cares about. Methods are called after the storage operation succeeded and
+/// must not block.
+pub trait Observer: Send + Sync + 'static {
+    /// `created` new messages were stored in `queue`. Messages that matched an
+    /// existing idempotency key are not counted.
+    fn scheduled(&self, queue: &QueueName, created: usize) {
+        let _ = (queue, created);
+    }
+
+    /// `count` messages were leased from `queue`.
+    fn leased(&self, queue: &QueueName, count: usize) {
+        let _ = (queue, count);
+    }
+
+    /// A message was acked.
+    fn acked(&self, message: &Message) {
+        let _ = message;
+    }
+
+    /// A message was nacked. Its status says whether it will be retried
+    /// (`scheduled`) or is out of attempts (`dead`).
+    fn nacked(&self, message: &Message) {
+        let _ = message;
+    }
+}
+
+/// The observer used when none is set.
+struct NoObserver;
+
+impl Observer for NoObserver {}
+
 /// The entry point to everything dally does.
 #[derive(Clone)]
 pub struct Service {
     storage: Arc<dyn Storage>,
     defaults: QueueSettings,
+    observer: Arc<dyn Observer>,
 }
 
 impl Service {
     /// Creates a service. `defaults` are the settings for queues created
     /// implicitly, by scheduling into or polling from an unknown queue.
     pub fn new(storage: Arc<dyn Storage>, defaults: QueueSettings) -> Self {
-        Self { storage, defaults }
+        Self {
+            storage,
+            defaults,
+            observer: Arc::new(NoObserver),
+        }
+    }
+
+    /// Reports every scheduled, leased, acked and nacked message to `observer`.
+    pub fn with_observer(mut self, observer: Arc<dyn Observer>) -> Self {
+        self.observer = observer;
+        self
     }
 
     /// The storage this service uses.
@@ -113,7 +159,10 @@ impl Service {
             })
             .collect();
 
-        self.storage.schedule(queue, messages).await
+        let scheduled = self.storage.schedule(queue, messages).await?;
+        let created = scheduled.iter().filter(|result| result.created).count();
+        self.observer.scheduled(queue, created);
+        Ok(scheduled)
     }
 
     /// Leases due messages. If none are due and `request.wait` is non-zero,
@@ -137,6 +186,7 @@ impl Service {
             if !self.is_paused(queue).await? {
                 let leased = self.storage.lease(queue, request.limit).await?;
                 if !leased.is_empty() {
+                    self.observer.leased(queue, leased.len());
                     return Ok(leased);
                 }
             }
@@ -153,7 +203,10 @@ impl Service {
     /// Marks a message as succeeded.
     pub async fn ack(&self, id: MessageId, lease: &LeaseToken) -> Result<Message> {
         match self.storage.ack(id, lease).await? {
-            Some(message) => Ok(message),
+            Some(message) => {
+                self.observer.acked(&message);
+                Ok(message)
+            }
             None => Err(self.lease_error(id).await),
         }
     }
@@ -182,7 +235,10 @@ impl Service {
         };
 
         match self.storage.nack(id, &request.lease, retry).await? {
-            Some(message) => Ok(message),
+            Some(message) => {
+                self.observer.nacked(&message);
+                Ok(message)
+            }
             None => Err(self.lease_error(id).await),
         }
     }

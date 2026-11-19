@@ -34,9 +34,14 @@ async fn serve() -> Option<String> {
         .expect("bind");
     let address = listener.local_addr().expect("local addr");
     tokio::spawn(async move {
-        axum::serve(listener, dally_server::router(service))
-            .await
-            .expect("serve");
+        axum::serve(
+            listener,
+            dally_server::Server::new(service, dally_server::Config::default())
+                .expect("server")
+                .router(),
+        )
+        .await
+        .expect("serve");
     });
     Some(format!("http://{address}"))
 }

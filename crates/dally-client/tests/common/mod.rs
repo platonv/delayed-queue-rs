@@ -1,4 +1,4 @@
-//! A real server for the integration tests: `dally_server::router` on a random
+//! A real server for the integration tests: the dally server router on a random
 //! port, backed by PostgreSQL with a fresh schema per test. The tests need
 //! `DALLY_TEST_POSTGRES_URL` and skip themselves without it.
 
@@ -38,9 +38,14 @@ pub async fn serve() -> Option<Client> {
         .expect("bind");
     let address = listener.local_addr().expect("local addr");
     tokio::spawn(async move {
-        axum::serve(listener, dally_server::router(service))
-            .await
-            .expect("serve");
+        axum::serve(
+            listener,
+            dally_server::Server::new(service, dally_server::Config::default())
+                .expect("server")
+                .router(),
+        )
+        .await
+        .expect("serve");
     });
     Some(Client::new(format!("http://{address}")).expect("client"))
 }

@@ -20,5 +20,5 @@ pub use message::{
     RunAt, ScheduleRequest, Scheduled, Status,
 };
 pub use queue::{Backoff, PushSettings, Queue, QueueName, QueueSettings, QueueStats, QueueSummary};
-pub use service::{PollRequest, Service};
+pub use service::{Observer, PollRequest, Service};
 pub use storage::{ConnectOptions, Storage, connect};

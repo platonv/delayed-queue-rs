@@ -3,6 +3,8 @@ use axum::extract::{Path, State};
 use dally_core::{MessageId, Queue, QueueSettings, QueueSummary, Service};
 use serde::{Deserialize, Serialize};
 
+use crate::auth::Admin;
+
 use super::{ApiResult, Json, optional_json, queue_name};
 
 #[derive(Debug, Serialize)]
@@ -27,6 +29,7 @@ pub async fn get(
 /// `PUT /v1/queues/{queue}`: creates the queue or replaces its settings.
 /// Fields left out get their defaults, not their current values.
 pub async fn put(
+    _admin: Admin,
     State(service): State<Service>,
     Path(queue): Path<String>,
     Json(settings): Json<QueueSettings>,
@@ -38,6 +41,7 @@ pub async fn put(
 
 /// `POST /v1/queues/{queue}/pause`.
 pub async fn pause(
+    _admin: Admin,
     State(service): State<Service>,
     Path(queue): Path<String>,
 ) -> ApiResult<Json<Queue>> {
@@ -46,6 +50,7 @@ pub async fn pause(
 
 /// `POST /v1/queues/{queue}/resume`.
 pub async fn resume(
+    _admin: Admin,
     State(service): State<Service>,
     Path(queue): Path<String>,
 ) -> ApiResult<Json<Queue>> {
@@ -66,6 +71,7 @@ pub struct Retried {
 /// `POST /v1/queues/{queue}/dead/retry` with an optional `{"ids": [...]}`.
 /// Without ids, retries every dead message in the queue.
 pub async fn retry_dead(
+    _admin: Admin,
     State(service): State<Service>,
     Path(queue): Path<String>,
     body: Bytes,

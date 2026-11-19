@@ -10,6 +10,8 @@ use std::path::Path;
 use std::time::Duration;
 
 use dally_core::QueueSettings;
+
+use crate::auth::AuthConfig;
 use figment::Figment;
 use figment::providers::{Env, Format, Toml};
 use serde::de::Error as _;
@@ -39,6 +41,9 @@ pub struct Config {
 
     /// The background task that delivers messages from push queues.
     pub push: PushConfig,
+
+    /// API keys. With none, auth is off.
+    pub auth: AuthConfig,
 }
 
 impl Default for Config {
@@ -50,6 +55,7 @@ impl Default for Config {
             queues: BTreeMap::new(),
             janitor: JanitorConfig::default(),
             push: PushConfig::default(),
+            auth: AuthConfig::default(),
         }
     }
 }
@@ -184,7 +190,9 @@ pub struct CronJob {
 
 impl Config {
     /// The top-level keys, which environment variables are matched against.
-    const SECTIONS: &[&str] = &["listen", "storage", "defaults", "queues", "janitor", "push"];
+    const SECTIONS: &[&str] = &[
+        "listen", "storage", "defaults", "queues", "janitor", "push", "auth",
+    ];
 
     /// Loads the configuration: defaults, then the file at `path` (if given),
     /// then environment variables.

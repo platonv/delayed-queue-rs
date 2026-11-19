@@ -133,6 +133,12 @@ impl Default for ConnectOptions {
 
 /// Connects to the backend named by the URL scheme: `postgres://`, `sqlite://`
 /// or `redis://`. A backend is only available if its cargo feature is enabled.
+// Without any backend compiled in, every scheme is an error and `options` is
+// never read.
+#[cfg_attr(
+    not(any(feature = "postgres", feature = "sqlite", feature = "redis")),
+    allow(unused_variables)
+)]
 pub async fn connect(url: &str, options: &ConnectOptions) -> Result<Arc<dyn Storage>> {
     // Split at the first colon rather than at "://": SQLite's in-memory URL
     // is `sqlite::memory:`.

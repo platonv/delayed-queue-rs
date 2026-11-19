@@ -16,7 +16,7 @@ use dally_core::{
     ScheduleRequest, Service, Status,
 };
 use dally_server::config::{CronJob, PushConfig, QueueConfig};
-use dally_server::{CancellationToken, Config, signature};
+use dally_server::{CancellationToken, Config, Server, signature};
 use serde_json::json;
 use tokio::sync::mpsc;
 
@@ -127,7 +127,9 @@ async fn success_acks_with_payload_headers_and_signature() {
     let id = scheduled[0].message.id;
 
     let stop = CancellationToken::new();
-    let tasks = dally_server::start_background_tasks(service.clone(), &fast_config(), stop.clone())
+    let tasks = Server::new(service.clone(), fast_config())
+        .expect("server")
+        .start_background_tasks(stop.clone())
         .expect("start");
 
     let (headers, body) = tokio::time::timeout(Duration::from_secs(5), received.recv())
@@ -194,7 +196,9 @@ async fn failures_are_retried_until_dead() {
     let id = scheduled[0].message.id;
 
     let stop = CancellationToken::new();
-    let tasks = dally_server::start_background_tasks(service.clone(), &fast_config(), stop.clone())
+    let tasks = Server::new(service.clone(), fast_config())
+        .expect("server")
+        .start_background_tasks(stop.clone())
         .expect("start");
 
     eventually("the message to die", || async {
@@ -245,7 +249,9 @@ async fn concurrency_is_respected() {
     service.schedule(&emails, requests).await.expect("schedule");
 
     let stop = CancellationToken::new();
-    let tasks = dally_server::start_background_tasks(service.clone(), &fast_config(), stop.clone())
+    let tasks = Server::new(service.clone(), fast_config())
+        .expect("server")
+        .start_background_tasks(stop.clone())
         .expect("start");
 
     eventually("every message to be acked", || async {
@@ -280,14 +286,15 @@ async fn two_cron_tickers_schedule_each_occurrence_once() {
             }],
         },
     );
-    dally_server::apply_queues(&service, &config)
-        .await
-        .expect("apply queues");
+    let server = Server::new(service.clone(), config).expect("server");
+    server.apply_queues().await.expect("apply queues");
 
     let stop = CancellationToken::new();
-    let first = dally_server::start_background_tasks(service.clone(), &config, stop.clone())
+    let first = server
+        .start_background_tasks(stop.clone())
         .expect("start first");
-    let second = dally_server::start_background_tasks(service.clone(), &config, stop.clone())
+    let second = server
+        .start_background_tasks(stop.clone())
         .expect("start second");
     tokio::time::sleep(Duration::from_millis(2500)).await;
     stop.cancel();

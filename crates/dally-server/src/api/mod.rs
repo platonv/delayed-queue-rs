@@ -5,15 +5,21 @@ mod error;
 mod messages;
 mod queues;
 
+use std::sync::Arc;
+
 use axum::Router;
 use axum::body::Bytes;
 use axum::extract::{FromRequest, FromRequestParts, State};
 use axum::http::StatusCode;
+use axum::middleware::from_fn_with_state;
 use axum::routing::{get, post};
 use dally_core::{MessageId, QueueName, Service};
 use tower_http::trace::TraceLayer;
 
 pub use error::ApiError;
+
+use crate::auth::{Auth, authenticate};
+use crate::metrics::{self, Metrics, MetricsState};
 
 /// A JSON body whose errors come back in the API's error format, not as
 /// axum's plain-text rejections.
@@ -53,9 +59,15 @@ struct Query<T>(T);
 
 type ApiResult<T> = Result<T, ApiError>;
 
-/// Builds the router for the whole API. Mount it in your own axum app, or
-/// serve it with [`crate::run`].
-pub fn router(service: Service) -> Router {
+/// Builds the router for the whole API. [`crate::Server::router`] is the
+/// public way in.
+pub fn router(
+    service: Service,
+    auth: Arc<Auth>,
+    metrics: Arc<Metrics>,
+    protect_metrics: bool,
+) -> Router {
+    // Admin-only endpoints say so with an `Admin` argument in their handler.
     let v1 = Router::new()
         .route("/queues", get(queues::list))
         .route("/queues/{queue}", get(queues::get).put(queues::put))
@@ -75,14 +87,27 @@ pub fn router(service: Service) -> Router {
                 .delete(messages::cancel),
         )
         .route("/messages/{id}/ack", post(messages::ack))
-        .route("/messages/{id}/nack", post(messages::nack));
+        .route("/messages/{id}/nack", post(messages::nack))
+        .route_layer(from_fn_with_state(Arc::clone(&auth), authenticate));
+
+    let mut metrics_route = Router::new()
+        .route("/metrics", get(metrics::handler))
+        .with_state(MetricsState {
+            metrics: Arc::clone(&metrics),
+            service: service.clone(),
+        });
+    if protect_metrics {
+        metrics_route = metrics_route.route_layer(from_fn_with_state(auth, authenticate));
+    }
 
     Router::new()
         .nest("/v1", v1)
         .route("/healthz", get(healthz))
         .route("/readyz", get(readyz))
-        .layer(TraceLayer::new_for_http())
         .with_state(service)
+        .merge(metrics_route)
+        .layer(from_fn_with_state(metrics, metrics::track_requests))
+        .layer(TraceLayer::new_for_http())
 }
 
 /// The process is up.
