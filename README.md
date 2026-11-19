@@ -107,6 +107,7 @@ happens and how to deal with it.
 
 - [Design](docs/design.md): how dally works and why
 - [Delivery semantics](docs/semantics.md)
+- [Push delivery](docs/push.md)
 - [Contributing](CONTRIBUTING.md)
 
 ## License

@@ -7,15 +7,19 @@
 
 mod api;
 pub mod config;
+mod cron;
 mod janitor;
+mod push;
+pub mod signature;
 
 use std::future::Future;
 
 use dally_core::{ConnectOptions, QueueName, Service};
-use tokio_util::sync::CancellationToken;
+use tokio::task::JoinHandle;
 
 pub use api::router;
 pub use config::Config;
+pub use tokio_util::sync::CancellationToken;
 
 /// Why the server could not start or stopped with an error.
 #[derive(Debug, thiserror::Error)]
@@ -40,6 +44,9 @@ pub async fn run(
     config: Config,
     shutdown: impl Future<Output = ()> + Send + 'static,
 ) -> Result<(), Error> {
+    // Check the cron jobs before connecting, so a typo fails fast.
+    cron::entries(&config)?;
+
     let options = ConnectOptions {
         migrate: config.storage.migrate,
     };
@@ -51,11 +58,7 @@ pub async fn run(
     tracing::info!(address = %listener.local_addr()?, "dally is listening");
 
     let stop = CancellationToken::new();
-    let janitor = tokio::spawn(janitor::run(
-        service.clone(),
-        config.janitor.interval,
-        stop.clone(),
-    ));
+    let background = start_background_tasks(service.clone(), &config, stop.clone())?;
 
     let app = router(service);
     let serve_stop = stop.clone();
@@ -67,18 +70,50 @@ pub async fn run(
         .await?;
 
     stop.cancel();
-    let _ = janitor.await;
+    let _ = background.await;
     tracing::info!("dally stopped");
     Ok(())
 }
 
+/// Starts the janitor, the push dispatcher and the cron ticker. They run
+/// until `stop` is cancelled; the returned handle finishes once they have all
+/// wound down, including in-flight push requests.
+///
+/// [`run`] calls this. Call it yourself when you serve [`router`] from your
+/// own axum app.
+pub fn start_background_tasks(
+    service: Service,
+    config: &Config,
+    stop: CancellationToken,
+) -> Result<JoinHandle<()>, Error> {
+    let cron_entries = cron::entries(config)?;
+    let client = push::client(&config.push)?;
+
+    let janitor = tokio::spawn(janitor::run(
+        service.clone(),
+        config.janitor.interval,
+        stop.clone(),
+    ));
+    let push = tokio::spawn(push::run(
+        service.clone(),
+        config.push.clone(),
+        client,
+        stop.clone(),
+    ));
+    let cron = tokio::spawn(cron::run(service, cron_entries, stop));
+
+    Ok(tokio::spawn(async move {
+        let _ = tokio::join!(janitor, push, cron);
+    }))
+}
+
 /// Creates or updates the queues listed in the configuration.
-async fn apply_queues(service: &Service, config: &Config) -> Result<(), Error> {
-    for (name, settings) in &config.queues {
+pub async fn apply_queues(service: &Service, config: &Config) -> Result<(), Error> {
+    for (name, queue) in &config.queues {
         let name = QueueName::new(name.as_str())
             .map_err(|err| Error::Config(format!("queues.{name}: {err}")))?;
         service
-            .put_queue(&name, settings.clone())
+            .put_queue(&name, queue.settings.clone())
             .await
             .map_err(|err| match err {
                 dally_core::Error::InvalidInput(message) => {

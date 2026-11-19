@@ -242,7 +242,7 @@ them to the endpoint. A `2xx` response acks the message. Anything else,
 including a timeout, nacks it with the response status and the first 1 KiB of
 the body as the error text. Each request carries:
 
-- `Dally-Message-Id`, `Dally-Attempt`
+- `Dally-Message-Id`, `Dally-Queue`, `Dally-Attempt`
 - `Dally-Signature: t=<unix seconds>,v1=<hex hmac-sha256(secret, "<t>.<body>")>`
 
 The docs include a short "verify the signature" snippet for common languages.

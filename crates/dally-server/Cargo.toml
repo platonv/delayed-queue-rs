@@ -17,11 +17,17 @@ sqlite = ["dally-core/sqlite"]
 [dependencies]
 axum.workspace = true
 chrono.workspace = true
+chrono-tz.workspace = true
+croner.workspace = true
 dally-core.workspace = true
 figment.workspace = true
+hex.workspace = true
+hmac.workspace = true
 humantime-serde.workspace = true
+reqwest = { workspace = true, features = ["rustls"] }
 serde.workspace = true
 serde_json.workspace = true
+sha2.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["full"] }
 tokio-util.workspace = true
@@ -31,7 +37,8 @@ tracing.workspace = true
 [dev-dependencies]
 sqlx = { workspace = true, features = ["postgres"] }
 figment = { workspace = true, features = ["test"] }
-dally-core = { workspace = true, features = ["postgres"] }
+dally-core = { workspace = true, features = ["postgres", "sqlite"] }
+tempfile.workspace = true
 reqwest.workspace = true
 uuid.workspace = true
 
