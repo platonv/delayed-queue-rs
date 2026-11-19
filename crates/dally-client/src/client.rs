@@ -5,8 +5,8 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use dally_core::{
-    LeaseToken, Leased, Message, MessageFilter, MessageId, NackRequest, Page, Queue,
-    QueueSettings, QueueSummary, RunAt, ScheduleRequest, Scheduled,
+    LeaseToken, Leased, Message, MessageFilter, MessageId, NackRequest, Page, Queue, QueueSettings,
+    QueueSummary, RunAt, ScheduleRequest, Scheduled,
 };
 use reqwest::{Method, RequestBuilder, Response, StatusCode, Url};
 use serde::de::DeserializeOwned;
@@ -182,7 +182,9 @@ impl Client {
         request: &ScheduleRequest,
     ) -> Result<Scheduled> {
         let url = self.url(&["v1", "queues", queue, "messages"])?;
-        let response = self.execute(self.request(Method::POST, url).json(request)).await?;
+        let response = self
+            .execute(self.request(Method::POST, url).json(request))
+            .await?;
         // The server says whether the message is new through the status code:
         // 200 means the idempotency key matched an existing message.
         let created = response.status() == StatusCode::CREATED;
@@ -288,10 +290,7 @@ impl Client {
     pub async fn reschedule(&self, id: MessageId, run_at: RunAt) -> Result<Message> {
         #[derive(Serialize)]
         struct Body {
-            #[serde(
-                with = "humantime_serde",
-                skip_serializing_if = "Option::is_none"
-            )]
+            #[serde(with = "humantime_serde", skip_serializing_if = "Option::is_none")]
             delay: Option<Duration>,
             #[serde(skip_serializing_if = "Option::is_none")]
             run_at: Option<chrono::DateTime<chrono::Utc>>,

@@ -11,6 +11,7 @@ repository = "https://github.com/platonv/dally"
 authors = ["Platon Vlad"]
 
 [workspace.dependencies]
+dally-client = { path = "crates/dally-client", version = "0.1.0" }
 dally-core = { path = "crates/dally-core", version = "0.1.0" }
 dally-server = { path = "crates/dally-server", version = "0.1.0" }
 
@@ -26,6 +27,7 @@ figment = { version = "0.10.19", features = ["toml", "env"] }
 futures-util = { version = "0.3.34", default-features = false }
 hex = "0.4.3"
 hmac = "0.13.0"
+humantime = "2.4.0"
 humantime-serde = "1.1.1"
 redis = { version = "1.8.2", default-features = false, features = ["script", "tokio-comp", "connection-manager", "tokio-rustls-comp"] }
 reqwest = { version = "0.13.5", default-features = false, features = ["json"] }

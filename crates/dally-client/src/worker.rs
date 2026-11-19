@@ -259,9 +259,11 @@ where
     );
 
     let outcome = match serde_json::from_value::<T>(message.payload.clone()) {
-        Ok(payload) => run_handler(handler, Job { payload, message })
-            .instrument(span.clone())
-            .await,
+        Ok(payload) => {
+            run_handler(handler, Job { payload, message })
+                .instrument(span.clone())
+                .await
+        }
         Err(err) => Err(format!("invalid payload: {err}")),
     };
     report(&client, id, &lease, outcome).instrument(span).await;

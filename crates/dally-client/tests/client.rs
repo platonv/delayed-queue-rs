@@ -38,7 +38,10 @@ async fn schedule_poll_ack() {
         .send()
         .await
         .expect("schedule again");
-    assert!(!again.created, "a repeated key returns the existing message");
+    assert!(
+        !again.created,
+        "a repeated key returns the existing message"
+    );
     assert_eq!(again.message.id, scheduled.message.id);
 
     let polled = client
@@ -264,10 +267,7 @@ async fn list_messages_filters_and_pages() {
         .send()
         .await
         .expect("schedule");
-    client
-        .cancel(in_b.message.id)
-        .await
-        .expect("cancel");
+    client.cancel(in_b.message.id).await.expect("cancel");
 
     let all = client
         .list_messages(&MessageFilter::default())
@@ -320,7 +320,11 @@ async fn queues() {
     let queue = client.put_queue("billing", &settings).await.expect("put");
     assert_eq!(queue.settings, settings);
 
-    client.schedule("billing", &1).send().await.expect("schedule");
+    client
+        .schedule("billing", &1)
+        .send()
+        .await
+        .expect("schedule");
 
     let summary = client.get_queue("billing").await.expect("get");
     assert_eq!(summary.queue.settings.max_attempts, 9);
@@ -363,21 +367,31 @@ async fn errors_carry_the_server_code() {
         .expect_err("no such message");
     assert!(err.is_not_found());
     assert_eq!(err.code(), Some("message_not_found"));
-    assert_eq!(err.status(), Some(dally_client::reqwest::StatusCode::NOT_FOUND));
+    assert_eq!(
+        err.status(),
+        Some(dally_client::reqwest::StatusCode::NOT_FOUND)
+    );
     assert!(!err.is_retryable());
 
     let err = client.get_queue("nope").await.expect_err("no such queue");
     assert!(err.is_not_found());
     assert_eq!(err.code(), Some("queue_not_found"));
 
-    let scheduled = client.schedule("emails", &1).send().await.expect("schedule");
+    let scheduled = client
+        .schedule("emails", &1)
+        .send()
+        .await
+        .expect("schedule");
     let wrong = dally_client::LeaseToken::from("not-the-lease".to_owned());
     let err = client
         .ack(scheduled.message.id, &wrong)
         .await
         .expect_err("wrong lease");
     assert!(err.is_lease_mismatch(), "{err:?}");
-    assert_eq!(err.status(), Some(dally_client::reqwest::StatusCode::CONFLICT));
+    assert_eq!(
+        err.status(),
+        Some(dally_client::reqwest::StatusCode::CONFLICT)
+    );
 
     let err = client
         .schedule("bad name", &1)

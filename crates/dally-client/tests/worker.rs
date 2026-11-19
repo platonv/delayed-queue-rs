@@ -63,7 +63,11 @@ async fn handle(job: Job<Task>) -> Result<(), String> {
         panic!("boom");
     }
     if job.payload.fail {
-        return Err(format!("attempt {} of {} failed", job.attempt(), job.max_attempts()));
+        return Err(format!(
+            "attempt {} of {} failed",
+            job.attempt(),
+            job.max_attempts()
+        ));
     }
     Ok(())
 }
