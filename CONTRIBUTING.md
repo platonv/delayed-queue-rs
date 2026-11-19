@@ -15,6 +15,7 @@ why. A change that goes against it is not ruled out, but it needs a discussion.
 | `crates/dally-core`   | Domain types, the `Service` rules, the `Storage` trait and backends |
 | `crates/dally-server` | HTTP API and background tasks                           |
 | `crates/dally-client` | Rust client and `Worker`                                |
+| `crates/dally-ui`     | Web UI, a client of the HTTP API                        |
 | `crates/dally`        | The `dally` binary                                      |
 | `docs/`               | Design notes and user documentation                     |
 
@@ -36,6 +37,12 @@ Before sending a pull request, run what CI runs:
 cargo fmt --all --check
 cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo test --workspace --all-features
+```
+
+After changing the HTTP API, regenerate the committed OpenAPI spec:
+
+```sh
+UPDATE_OPENAPI=1 cargo test -p dally-server openapi
 ```
 
 ## Adding a storage backend

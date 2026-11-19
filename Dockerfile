@@ -2,13 +2,17 @@
 #
 #   docker build -t dally .
 #   docker run -p 7070:7070 -v dally-data:/data dally
+#
+# On a machine with little memory, limit parallel compile jobs:
+#   docker build --build-arg CARGO_BUILD_JOBS=2 -t dally .
 
 FROM rust:1-bookworm AS build
+ARG CARGO_BUILD_JOBS
 WORKDIR /src
 COPY . .
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/src/target \
-    cargo build --release --locked -p dally \
+    cargo build --release --locked -p dally ${CARGO_BUILD_JOBS:+--jobs $CARGO_BUILD_JOBS} \
     && cp target/release/dally /usr/local/bin/dally
 
 FROM debian:bookworm-slim

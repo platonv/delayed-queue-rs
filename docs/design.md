@@ -156,45 +156,43 @@ generic CRUD. Each backend implements every method atomically. The shared
 conformance test suite (`dally-core/tests/conformance`) runs the same tests
 against every backend.
 
+In brief (see `crates/dally-core/src/storage/mod.rs` for the documented
+version):
+
 ```rust
 #[async_trait]
 pub trait Storage: Send + Sync + 'static {
-    async fn upsert_queue(&self, queue: &QueueConfig) -> Result<()>;
-    async fn get_queue(&self, name: &QueueName) -> Result<Option<QueueConfig>>;
+    async fn ensure_queue(&self, name: &QueueName, defaults: &QueueSettings) -> Result<Queue>;
+    async fn put_queue(&self, name: &QueueName, settings: &QueueSettings) -> Result<Queue>;
+    async fn get_queue(&self, name: &QueueName) -> Result<Option<QueueSummary>>;
     async fn list_queues(&self) -> Result<Vec<QueueSummary>>;
 
-    /// Inserts messages. Messages whose idempotency key already exists in the
-    /// queue are not inserted; the existing message is returned instead.
     async fn schedule(&self, queue: &QueueName, messages: Vec<NewMessage>)
         -> Result<Vec<Scheduled>>;
-
-    /// Leases up to `limit` due messages from an unpaused queue. Expired
-    /// leases are reclaimed here, counting as a failed attempt.
     async fn lease(&self, queue: &QueueName, limit: u32) -> Result<Vec<Leased>>;
-
-    async fn ack(&self, id: MessageId, lease: &LeaseToken) -> Result<AckOutcome>;
-    async fn nack(&self, id: MessageId, lease: &LeaseToken, nack: Nack)
-        -> Result<AckOutcome>;
+    async fn ack(&self, id: MessageId, lease: &LeaseToken) -> Result<Option<Message>>;
+    async fn nack(&self, id: MessageId, lease: &LeaseToken, retry: Retry)
+        -> Result<Option<Message>>;
 
     async fn get_message(&self, id: MessageId) -> Result<Option<Message>>;
     async fn list_messages(&self, filter: &MessageFilter) -> Result<Page<Message>>;
-    async fn cancel(&self, id: MessageId) -> Result<bool>;
-    async fn reschedule(&self, id: MessageId, run_at: Timestamp) -> Result<bool>;
+    async fn cancel(&self, id: MessageId) -> Result<Option<Message>>;
+    async fn reschedule(&self, id: MessageId, run_at: RunAt) -> Result<Option<Message>>;
     async fn retry_dead(&self, queue: &QueueName, ids: Option<&[MessageId]>) -> Result<u64>;
-
-    /// Deletes finished messages older than their queue's retention.
     async fn prune(&self) -> Result<u64>;
 
-    /// Resolves when a message in `queue` may have become due. Used for
-    /// long polling; spurious wake-ups are fine.
-    fn notified(&self, queue: &QueueName) -> BoxFuture<'static, ()>;
+    /// Optional; used for the oldest-due metric.
+    async fn oldest_due(&self) -> Result<Option<BTreeMap<QueueName, Duration>>> { Ok(None) }
 
-    async fn now(&self) -> Result<Timestamp>;
+    fn subscribe(&self, queue: &QueueName) -> Subscription;
+    async fn now(&self) -> Result<DateTime<Utc>>;
 }
 ```
 
-This is a sketch. The exact signatures will settle during implementation, but
-the shape stays: few methods, each one atomic.
+`None` from ack, nack, cancel and reschedule means "nothing matched"; the
+`Service` then looks the message up to say whether it is missing, held under
+another lease, or in the wrong status. Backoff, defaults and validation live in
+the `Service`, so backends only store and fetch.
 
 ### Backends
 
@@ -287,6 +285,8 @@ generated from the code with `utoipa` and served at `/v1/openapi.json`.
 | `POST /v1/queues/{queue}/pause`, `/resume` | Pause or resume delivery                |
 | `GET /v1/queues/{queue}/messages`      | List messages, filterable by status         |
 | `POST /v1/queues/{queue}/dead/retry`   | Move dead messages back to `scheduled`      |
+| `GET /v1/messages`                     | List messages across queues                 |
+| `GET /v1/openapi.json`                 | This API as OpenAPI 3.1                     |
 | `GET /healthz`, `GET /readyz`          | Liveness and readiness                      |
 | `GET /metrics`                         | Prometheus metrics                          |
 
@@ -337,6 +337,7 @@ dally ui --server URL
 dally queues ls | show NAME | pause NAME | resume NAME
 dally schedule QUEUE --payload JSON [--delay 10m] [--key K]
 dally inspect ID
+dally messages ls [--queue Q] [--status S]
 dally dead retry QUEUE [ID...]
 ```
 
