@@ -10,7 +10,9 @@ use dally_core::{
     ScheduleRequest, Scheduled, Service, Status,
 };
 use serde::{Deserialize, Serialize};
+use utoipa::{IntoParams, ToSchema};
 
+use super::openapi::{ErrorBody, ScheduleBody, ScheduleResponse};
 use super::{ApiError, ApiResult, Json, Query, message_id, optional_json, queue_name};
 
 /// `POST /v1/queues/{queue}/messages` takes one message or an array of them.
@@ -20,6 +22,16 @@ use super::{ApiError, ApiResult, Json, Query, message_id, optional_json, queue_n
 ///
 /// An array: `200 OK` with `{"messages": [{"created": bool, "message": ...}]}`
 /// in the same order.
+#[utoipa::path(
+    post, path = "/v1/queues/{queue}/messages", tag = "messages",
+    params(("queue" = String, Path, description = "Queue name")),
+    request_body = ScheduleBody,
+    responses(
+        (status = 201, description = "Scheduled", body = Message),
+        (status = 200, description = "The existing message, if its idempotency key was already used; or the results of a batch", body = ScheduleResponse),
+        (status = 400, description = "Invalid input", body = ErrorBody), (status = 401, description = "Missing or unknown API key", body = ErrorBody), (status = 503, description = "Storage is unavailable", body = ErrorBody)
+    )
+)]
 pub async fn schedule(
     State(service): State<Service>,
     Path(queue): Path<String>,
@@ -54,26 +66,38 @@ pub async fn schedule(
     Ok((status, Json(message)).into_response())
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct Batch {
     messages: Vec<Scheduled>,
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, ToSchema)]
 #[serde(default, deny_unknown_fields)]
 pub struct PollBody {
+    /// Lease at most this many messages, 1 to 100. Defaults to 1.
     limit: Option<u32>,
+    /// If nothing is due, wait up to this long (at most 30s) for a message.
     #[serde(with = "humantime_serde")]
+    #[schema(value_type = Option<String>, example = "20s")]
     wait: Option<Duration>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct Polled {
     messages: Vec<Leased>,
 }
 
 /// `POST /v1/queues/{queue}/poll` with an optional body
 /// `{"limit": 10, "wait": "20s"}`.
+#[utoipa::path(
+    post, path = "/v1/queues/{queue}/poll", tag = "messages",
+    params(("queue" = String, Path, description = "Queue name")),
+    request_body(content = Option<PollBody>, description = "Optional; defaults to one message and no waiting"),
+    responses(
+        (status = 200, description = "Leased messages, possibly none", body = Polled),
+        (status = 400, description = "Invalid input", body = ErrorBody), (status = 401, description = "Missing or unknown API key", body = ErrorBody), (status = 503, description = "Storage is unavailable", body = ErrorBody)
+    )
+)]
 pub async fn poll(
     State(service): State<Service>,
     Path(queue): Path<String>,
@@ -90,13 +114,23 @@ pub async fn poll(
     Ok(Json(Polled { messages }))
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct AckBody {
+    /// The lease token from the poll.
     lease: LeaseToken,
 }
 
 /// `POST /v1/messages/{id}/ack` with `{"lease": "..."}`.
+#[utoipa::path(
+    post, path = "/v1/messages/{id}/ack", tag = "messages",
+    params(("id" = uuid::Uuid, Path, description = "Message id")),
+    request_body = AckBody,
+    responses(
+        (status = 200, description = "Succeeded", body = Message),
+        (status = 400, description = "Invalid input", body = ErrorBody), (status = 401, description = "Missing or unknown API key", body = ErrorBody), (status = 404, description = "Not found", body = ErrorBody), (status = 409, description = "The lease or status does not allow this", body = ErrorBody), (status = 503, description = "Storage is unavailable", body = ErrorBody)
+    )
+)]
 pub async fn ack(
     State(service): State<Service>,
     Path(id): Path<String>,
@@ -108,6 +142,15 @@ pub async fn ack(
 
 /// `POST /v1/messages/{id}/nack` with `{"lease": "...", "error": "...",
 /// "retry_in": "30s"}`. Only `lease` is required.
+#[utoipa::path(
+    post, path = "/v1/messages/{id}/nack", tag = "messages",
+    params(("id" = uuid::Uuid, Path, description = "Message id")),
+    request_body = NackRequest,
+    responses(
+        (status = 200, description = "Scheduled for a retry, or dead", body = Message),
+        (status = 400, description = "Invalid input", body = ErrorBody), (status = 401, description = "Missing or unknown API key", body = ErrorBody), (status = 404, description = "Not found", body = ErrorBody), (status = 409, description = "The lease or status does not allow this", body = ErrorBody), (status = 503, description = "Storage is unavailable", body = ErrorBody)
+    )
+)]
 pub async fn nack(
     State(service): State<Service>,
     Path(id): Path<String>,
@@ -118,6 +161,14 @@ pub async fn nack(
 }
 
 /// `GET /v1/messages/{id}`.
+#[utoipa::path(
+    get, path = "/v1/messages/{id}", tag = "messages",
+    params(("id" = uuid::Uuid, Path, description = "Message id")),
+    responses(
+        (status = 200, description = "The message", body = Message),
+        (status = 400, description = "Invalid input", body = ErrorBody), (status = 401, description = "Missing or unknown API key", body = ErrorBody), (status = 404, description = "Not found", body = ErrorBody), (status = 503, description = "Storage is unavailable", body = ErrorBody)
+    )
+)]
 pub async fn get(
     State(service): State<Service>,
     Path(id): Path<String>,
@@ -125,17 +176,29 @@ pub async fn get(
     Ok(Json(service.get_message(message_id(&id)?).await?))
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct RescheduleBody {
+    /// Run after this delay. Cannot be combined with `run_at`.
     #[serde(default, with = "humantime_serde")]
+    #[schema(value_type = Option<String>, example = "1h")]
     delay: Option<Duration>,
+    /// Run at this time. With neither field, the message runs now.
     #[serde(default)]
     run_at: Option<DateTime<Utc>>,
 }
 
 /// `PATCH /v1/messages/{id}` with `{"delay": "1h"}` or `{"run_at": "..."}`.
 /// An empty object runs it now.
+#[utoipa::path(
+    patch, path = "/v1/messages/{id}", tag = "messages",
+    params(("id" = uuid::Uuid, Path, description = "Message id")),
+    request_body = RescheduleBody,
+    responses(
+        (status = 200, description = "Rescheduled", body = Message),
+        (status = 400, description = "Invalid input", body = ErrorBody), (status = 401, description = "Missing or unknown API key", body = ErrorBody), (status = 404, description = "Not found", body = ErrorBody), (status = 409, description = "The lease or status does not allow this", body = ErrorBody), (status = 503, description = "Storage is unavailable", body = ErrorBody)
+    )
+)]
 pub async fn reschedule(
     State(service): State<Service>,
     Path(id): Path<String>,
@@ -153,6 +216,14 @@ pub async fn reschedule(
 }
 
 /// `DELETE /v1/messages/{id}` cancels a scheduled message.
+#[utoipa::path(
+    delete, path = "/v1/messages/{id}", tag = "messages",
+    params(("id" = uuid::Uuid, Path, description = "Message id")),
+    responses(
+        (status = 200, description = "Cancelled", body = Message),
+        (status = 400, description = "Invalid input", body = ErrorBody), (status = 401, description = "Missing or unknown API key", body = ErrorBody), (status = 404, description = "Not found", body = ErrorBody), (status = 409, description = "The lease or status does not allow this", body = ErrorBody), (status = 503, description = "Storage is unavailable", body = ErrorBody)
+    )
+)]
 pub async fn cancel(
     State(service): State<Service>,
     Path(id): Path<String>,
@@ -160,17 +231,46 @@ pub async fn cancel(
     Ok(Json(service.cancel(message_id(&id)?).await?))
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, IntoParams)]
 #[serde(default, deny_unknown_fields)]
+#[into_params(parameter_in = Query)]
 pub struct ListParams {
+    /// Only messages in this queue.
     queue: Option<String>,
+    /// Only messages in this status.
     status: Option<Status>,
+    /// Only messages older than this one: pass the previous page's `next`.
+    #[param(value_type = Option<uuid::Uuid>)]
     before: Option<MessageId>,
+    /// At most this many messages, up to 500. Defaults to 50.
+    limit: Option<u32>,
+}
+
+/// The query parameters of the per-queue listing, which takes the queue
+/// from the path. Only used to describe the endpoint.
+#[derive(IntoParams)]
+#[into_params(parameter_in = Query)]
+#[allow(dead_code)]
+pub struct QueueListParams {
+    /// Only messages in this status.
+    status: Option<Status>,
+    /// Only messages older than this one: pass the previous page's `next`.
+    #[param(value_type = Option<uuid::Uuid>)]
+    before: Option<MessageId>,
+    /// At most this many messages, up to 500. Defaults to 50.
     limit: Option<u32>,
 }
 
 /// `GET /v1/messages?queue=&status=&before=&limit=`, newest first. Pass the
 /// response's `next` as `before` to get the following page.
+#[utoipa::path(
+    get, path = "/v1/messages", tag = "messages",
+    params(ListParams),
+    responses(
+        (status = 200, description = "One page, newest first", body = Page<Message>),
+        (status = 400, description = "Invalid input", body = ErrorBody), (status = 401, description = "Missing or unknown API key", body = ErrorBody), (status = 503, description = "Storage is unavailable", body = ErrorBody)
+    )
+)]
 pub async fn list(
     State(service): State<Service>,
     Query(params): Query<ListParams>,
@@ -185,6 +285,14 @@ pub async fn list(
 }
 
 /// `GET /v1/queues/{queue}/messages?status=&before=&limit=`.
+#[utoipa::path(
+    get, path = "/v1/queues/{queue}/messages", tag = "messages",
+    params(("queue" = String, Path, description = "Queue name"), QueueListParams),
+    responses(
+        (status = 200, description = "One page, newest first", body = Page<Message>),
+        (status = 400, description = "Invalid input", body = ErrorBody), (status = 401, description = "Missing or unknown API key", body = ErrorBody), (status = 503, description = "Storage is unavailable", body = ErrorBody)
+    )
+)]
 pub async fn list_in_queue(
     State(service): State<Service>,
     Path(queue): Path<String>,

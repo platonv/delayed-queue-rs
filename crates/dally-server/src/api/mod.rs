@@ -3,6 +3,7 @@
 
 mod error;
 mod messages;
+mod openapi;
 mod queues;
 
 use std::sync::Arc;
@@ -102,6 +103,7 @@ pub fn router(
 
     Router::new()
         .nest("/v1", v1)
+        .route("/v1/openapi.json", get(openapi::spec))
         .route("/healthz", get(healthz))
         .route("/readyz", get(readyz))
         .with_state(service)
@@ -111,11 +113,22 @@ pub fn router(
 }
 
 /// The process is up.
+#[utoipa::path(
+    get, path = "/healthz", tag = "health", security(()),
+    responses((status = 200, description = "Up", body = String))
+)]
 async fn healthz() -> &'static str {
     "ok"
 }
 
 /// The process is up and can reach storage.
+#[utoipa::path(
+    get, path = "/readyz", tag = "health", security(()),
+    responses(
+        (status = 200, description = "Ready", body = String),
+        (status = 503, description = "Storage is unavailable", body = String)
+    )
+)]
 async fn readyz(State(service): State<Service>) -> (StatusCode, &'static str) {
     match service.storage().now().await {
         Ok(_) => (StatusCode::OK, "ok"),
