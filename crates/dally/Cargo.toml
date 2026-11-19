@@ -10,8 +10,9 @@ authors.workspace = true
 readme = "../../README.md"
 
 [features]
-default = ["postgres", "sqlite"]
+default = ["postgres", "sqlite", "redis"]
 postgres = ["dally-server/postgres"]
+redis = ["dally-server/redis"]
 sqlite = ["dally-server/sqlite"]
 
 [dependencies]

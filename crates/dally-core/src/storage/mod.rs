@@ -23,6 +23,8 @@ use crate::queue::{Queue, QueueName, QueueSettings, QueueSummary};
 
 #[cfg(feature = "postgres")]
 pub mod postgres;
+#[cfg(feature = "redis")]
+pub mod redis;
 #[cfg(feature = "sqlite")]
 pub mod sqlite;
 
@@ -143,7 +145,12 @@ pub async fn connect(url: &str, options: &ConnectOptions) -> Result<Arc<dyn Stor
             #[cfg(not(feature = "sqlite"))]
             return Err(missing_feature("sqlite"));
         }
-        "redis" => Err(missing_feature(scheme)),
+        "redis" | "rediss" => {
+            #[cfg(feature = "redis")]
+            return Ok(Arc::new(redis::RedisStorage::connect(url, options).await?));
+            #[cfg(not(feature = "redis"))]
+            return Err(missing_feature("redis"));
+        }
         // Only the scheme goes in the message: the URL may contain a password.
         _ => Err(Error::invalid(format!(
             "unsupported storage URL scheme {scheme:?}: expected postgres://, sqlite:// or redis://"

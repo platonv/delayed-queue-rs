@@ -65,3 +65,10 @@ impl From<sqlx::Error> for Error {
         Error::storage(err)
     }
 }
+
+#[cfg(feature = "redis")]
+impl From<redis::RedisError> for Error {
+    fn from(err: redis::RedisError) -> Self {
+        Error::storage(err)
+    }
+}

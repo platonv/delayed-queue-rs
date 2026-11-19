@@ -11,19 +11,24 @@ authors.workspace = true
 [features]
 default = []
 postgres = ["dep:sqlx", "sqlx/postgres"]
+redis = ["dep:redis", "dep:futures-util", "dep:rustls", "dep:url"]
 sqlite = ["dep:sqlx", "sqlx/sqlite"]
 
 [dependencies]
 async-trait.workspace = true
 chrono.workspace = true
 fastrand.workspace = true
+futures-util = { workspace = true, optional = true }
 humantime-serde.workspace = true
+redis = { workspace = true, optional = true }
+rustls = { workspace = true, optional = true }
 serde.workspace = true
 serde_json.workspace = true
 sqlx = { workspace = true, optional = true }
 thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true
+url = { workspace = true, optional = true }
 uuid.workspace = true
 
 [dev-dependencies]
