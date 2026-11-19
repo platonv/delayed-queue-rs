@@ -86,9 +86,13 @@ When a message is due, it is delivered by priority, highest first, then by
 
 ### Retries
 
-A nack, or a lease that expires, ends the current attempt. If the message has
-attempts left, it goes back to `scheduled` with
-`run_at = now + backoff(attempt)`. The backoff is
+A nack ends the current attempt. If the message has attempts left, it goes
+back to `scheduled` with `run_at = now + backoff(attempt)`.
+
+A lease that expires also ends the attempt, but without backoff: the message
+can be leased again right away, as in SQS. The worker probably crashed, so
+waiting longer only adds latency. If it was the last attempt, the message moves
+to `dead` with the error `lease expired`. The backoff is
 `min(base * 2^(attempt - 1), cap)` with ±20% jitter. A nack may also give its
 own `retry_in` delay. The error text from a nack is stored on the message so
 the UI can show why it failed.
@@ -194,7 +198,7 @@ the shape stays: few methods, each one atomic.
 
 ### Backends
 
-**PostgreSQL** is the reference backend. `lease` is one statement using
+**PostgreSQL** (13 or later) is the reference backend. `lease` is one statement using
 `FOR UPDATE SKIP LOCKED`, so concurrent pollers never block each other or take
 the same row. `LISTEN/NOTIFY` wakes long-polling requests as soon as a message
 is scheduled. A partial index on `(queue, priority DESC, run_at)` over
