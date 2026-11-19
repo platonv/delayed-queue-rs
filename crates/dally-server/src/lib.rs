@@ -157,6 +157,16 @@ pub async fn run(
     config: Config,
     shutdown: impl Future<Output = ()> + Send + 'static,
 ) -> Result<(), Error> {
+    run_with(config, Router::new(), shutdown).await
+}
+
+/// Like [`run`], with `extra` routes served next to the API, such as the web
+/// UI under `/ui`.
+pub async fn run_with(
+    config: Config,
+    extra: Router,
+    shutdown: impl Future<Output = ()> + Send + 'static,
+) -> Result<(), Error> {
     let options = ConnectOptions {
         migrate: config.storage.migrate,
     };
@@ -181,7 +191,7 @@ pub async fn run(
     let background = server.start_background_tasks(stop.clone())?;
 
     let serve_stop = stop.clone();
-    axum::serve(listener, server.router())
+    axum::serve(listener, server.router().merge(extra))
         .with_graceful_shutdown(async move {
             shutdown.await;
             serve_stop.cancel();

@@ -10,10 +10,12 @@ authors.workspace = true
 readme = "../../README.md"
 
 [features]
-default = ["postgres", "sqlite", "redis"]
+default = ["postgres", "sqlite", "redis", "ui"]
 postgres = ["dally-server/postgres"]
 redis = ["dally-server/redis"]
 sqlite = ["dally-server/sqlite"]
+# The web UI, served by `dally server --ui` or `dally ui`.
+ui = ["dep:dally-ui", "dep:axum"]
 # Export traces over OTLP when OTEL_EXPORTER_OTLP_ENDPOINT is set.
 otel = [
     "dep:opentelemetry",
@@ -24,10 +26,12 @@ otel = [
 
 [dependencies]
 anyhow.workspace = true
+axum = { workspace = true, optional = true }
 chrono.workspace = true
 clap.workspace = true
 dally-client.workspace = true
 dally-server.workspace = true
+dally-ui = { workspace = true, optional = true }
 humantime.workspace = true
 opentelemetry = { workspace = true, optional = true }
 opentelemetry-otlp = { workspace = true, optional = true }

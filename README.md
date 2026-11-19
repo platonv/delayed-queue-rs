@@ -17,6 +17,7 @@ curl -X POST localhost:7070/v1/queues/emails/messages \
 - **No duplicates from retried requests.** Idempotency keys make scheduling
   safe to retry.
 - **Push or pull.** Let dally call your webhook, or run workers that long-poll.
+- **A web UI.** Optional, and built on the same public API.
 - **One binary.** It starts with zero configuration on a local SQLite file.
 
 > dally is young. The API may change before 1.0.
@@ -70,6 +71,20 @@ secret = "..."
 
 Push is the quickest way to add background jobs to an existing web app: the
 job handler is just another endpoint.
+
+## Web UI
+
+```sh
+dally server --ui                      # served at http://127.0.0.1:7070/ui
+dally ui --server https://dally.internal   # or on its own, for a remote server
+```
+
+The UI shows queues and their counts, lets you browse messages by status,
+inspect payloads and errors, retry dead messages, cancel or run waiting ones,
+and pause queues. It talks to the server through the public API like any
+other client. When the server has API keys, you log in with yours, and the UI
+can do exactly what that key allows. Build without the `ui` feature to leave
+it out entirely.
 
 ## Configuration
 

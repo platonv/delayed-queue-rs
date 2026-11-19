@@ -39,6 +39,20 @@ enum Command {
         /// Configuration file (TOML). `DALLY_*` environment variables override it.
         #[arg(short, long, env = "DALLY_CONFIG")]
         config: Option<PathBuf>,
+
+        /// Also serve the web UI, under `/ui`.
+        #[cfg(feature = "ui")]
+        #[arg(long, env = "DALLY_UI")]
+        ui: bool,
+    },
+
+    /// Serve the web UI on its own, for a server running elsewhere. Use
+    /// `--server` to say where.
+    #[cfg(feature = "ui")]
+    Ui {
+        /// The address to serve the UI on.
+        #[arg(long, default_value = "127.0.0.1:7071")]
+        listen: std::net::SocketAddr,
     },
 
     /// Inspect and manage queues.
@@ -85,16 +99,64 @@ fn main() -> anyhow::Result<()> {
 
 async fn run(cli: Cli) -> anyhow::Result<()> {
     match cli.command {
+        #[cfg(feature = "ui")]
+        Command::Server { config, ui } => {
+            let config = Config::load(config.as_deref()).context("loading configuration")?;
+            let extra = if ui {
+                ui_in_server(&config)
+            } else {
+                axum::Router::new()
+            };
+            dally_server::run_with(config, extra, shutdown_signal()).await?;
+        }
+        #[cfg(not(feature = "ui"))]
         Command::Server { config } => {
             let config = Config::load(config.as_deref()).context("loading configuration")?;
             dally_server::run(config, shutdown_signal()).await?;
         }
+        #[cfg(feature = "ui")]
+        Command::Ui { listen } => serve_ui(&cli.connection, listen).await?,
         Command::Queues(command) => cli::queues(&cli.connection, command).await?,
         Command::Schedule(args) => cli::schedule(&cli.connection, args).await?,
         Command::Inspect { id } => cli::inspect(&cli.connection, id).await?,
         Command::Messages(command) => cli::messages(&cli.connection, command).await?,
         Command::Dead(command) => cli::dead(&cli.connection, command).await?,
     }
+    Ok(())
+}
+
+/// The UI mounted at `/ui` inside the server. It still talks to the server
+/// over HTTP, through the server's own listen address.
+#[cfg(feature = "ui")]
+fn ui_in_server(config: &Config) -> axum::Router {
+    let mut address = config.listen;
+    if address.ip().is_unspecified() {
+        address.set_ip(std::net::Ipv4Addr::LOCALHOST.into());
+    }
+    tracing::info!("serving the web UI at /ui");
+    dally_ui::mount(dally_ui::UiConfig {
+        server: format!("http://{address}"),
+        base_path: "/ui".to_owned(),
+    })
+}
+
+/// `dally ui`: the UI on its own listener, for the server at `--server`.
+#[cfg(feature = "ui")]
+async fn serve_ui(
+    connection: &cli::Connection,
+    listen: std::net::SocketAddr,
+) -> anyhow::Result<()> {
+    let ui = dally_ui::router(dally_ui::UiConfig {
+        server: connection.server().to_owned(),
+        base_path: String::new(),
+    });
+    let listener = tokio::net::TcpListener::bind(listen)
+        .await
+        .with_context(|| format!("listening on {listen}"))?;
+    tracing::info!(address = %listen, server = connection.server(), "serving the web UI");
+    axum::serve(listener, ui)
+        .with_graceful_shutdown(shutdown_signal())
+        .await?;
     Ok(())
 }
 

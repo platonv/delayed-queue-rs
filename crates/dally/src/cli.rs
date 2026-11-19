@@ -97,6 +97,12 @@ fn parse_status(value: &str) -> Result<Status, String> {
 }
 
 impl Connection {
+    /// The server's base URL.
+    #[cfg(feature = "ui")]
+    pub fn server(&self) -> &str {
+        &self.server
+    }
+
     fn client(&self) -> Result<Client> {
         let mut builder = Client::builder(&self.server);
         if let Some(key) = &self.api_key {

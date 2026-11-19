@@ -14,8 +14,10 @@ authors = ["Platon Vlad"]
 dally-client = { path = "crates/dally-client", version = "0.1.0" }
 dally-core = { path = "crates/dally-core", version = "0.1.0" }
 dally-server = { path = "crates/dally-server", version = "0.1.0" }
+dally-ui = { path = "crates/dally-ui", version = "0.1.0" }
 
 anyhow = "1.0.104"
+askama = "0.16.1"
 async-trait = "0.1.92"
 axum = { version = "0.8.9", features = ["macros"] }
 chrono = { version = "0.4.45", features = ["serde"] }

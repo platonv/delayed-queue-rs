@@ -1,0 +1,27 @@
+[package]
+name = "dally-ui"
+description = "Web UI for the dally job queue, talking to the server over its HTTP API"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+askama.workspace = true
+axum.workspace = true
+chrono.workspace = true
+dally-client.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+dally-core = { workspace = true, features = ["sqlite"] }
+dally-server.workspace = true
+reqwest = { workspace = true, features = ["form"] }
+tokio = { workspace = true, features = ["full"] }
+
+[lints]
+workspace = true
