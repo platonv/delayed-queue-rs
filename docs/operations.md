@@ -76,7 +76,7 @@ Two alerts worth having:
   expr: max by (queue) (dally_queue_oldest_due_seconds) > 300
   for: 10m
 - alert: DallyDeadMessages
-  expr: increase(max by (queue) (dally_queue_messages{status="dead"})[1h:]) > 0
+  expr: max by (queue) (dally_queue_messages{status="dead"}) > 0
 ```
 
 ## Tracing
