@@ -23,6 +23,8 @@ use crate::queue::{Queue, QueueName, QueueSettings, QueueSummary};
 
 #[cfg(feature = "postgres")]
 pub mod postgres;
+#[cfg(feature = "sqlite")]
+pub mod sqlite;
 
 /// Where dally keeps queues and messages.
 #[async_trait]
@@ -117,8 +119,10 @@ impl Default for ConnectOptions {
 /// Connects to the backend named by the URL scheme: `postgres://`, `sqlite://`
 /// or `redis://`. A backend is only available if its cargo feature is enabled.
 pub async fn connect(url: &str, options: &ConnectOptions) -> Result<Arc<dyn Storage>> {
+    // Split at the first colon rather than at "://": SQLite's in-memory URL
+    // is `sqlite::memory:`.
     let scheme = url
-        .split_once("://")
+        .split_once(':')
         .map(|(scheme, _)| scheme)
         .unwrap_or_default();
 
@@ -131,7 +135,13 @@ pub async fn connect(url: &str, options: &ConnectOptions) -> Result<Arc<dyn Stor
             #[cfg(not(feature = "postgres"))]
             return Err(missing_feature("postgres"));
         }
-        "sqlite" | "redis" => Err(missing_feature(scheme)),
+        "sqlite" => {
+            #[cfg(feature = "sqlite")]
+            return Ok(Arc::new(sqlite::SqliteStorage::connect(url, options).await?));
+            #[cfg(not(feature = "sqlite"))]
+            return Err(missing_feature("sqlite"));
+        }
+        "redis" => Err(missing_feature(scheme)),
         // Only the scheme goes in the message: the URL may contain a password.
         _ => Err(Error::invalid(format!(
             "unsupported storage URL scheme {scheme:?}: expected postgres://, sqlite:// or redis://"

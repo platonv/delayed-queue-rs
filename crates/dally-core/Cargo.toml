@@ -11,6 +11,7 @@ authors.workspace = true
 [features]
 default = []
 postgres = ["dep:sqlx", "sqlx/postgres"]
+sqlite = ["dep:sqlx", "sqlx/sqlite"]
 
 [dependencies]
 async-trait.workspace = true
@@ -26,6 +27,7 @@ tracing.workspace = true
 uuid.workspace = true
 
 [dev-dependencies]
+tempfile.workspace = true
 tokio = { workspace = true, features = ["full"] }
 
 [lints]

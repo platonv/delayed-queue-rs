@@ -59,7 +59,7 @@ impl Error {
     }
 }
 
-#[cfg(feature = "postgres")]
+#[cfg(any(feature = "postgres", feature = "sqlite"))]
 impl From<sqlx::Error> for Error {
     fn from(err: sqlx::Error) -> Self {
         Error::storage(err)

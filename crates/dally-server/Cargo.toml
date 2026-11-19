@@ -11,6 +11,7 @@ authors.workspace = true
 [features]
 default = []
 postgres = ["dally-core/postgres"]
+sqlite = ["dally-core/sqlite"]
 
 [dependencies]
 axum.workspace = true
