@@ -196,3 +196,16 @@ async fn health_endpoints() {
         assert_eq!(response.status(), StatusCode::OK, "{path}");
     }
 }
+
+#[tokio::test]
+async fn json_bodies_need_no_content_type() {
+    let (base, client) = serve_or_skip!();
+
+    let response = client
+        .post(format!("{base}/v1/queues/emails/messages"))
+        .body(r#"{"payload": {"to": "ana"}}"#)
+        .send()
+        .await
+        .expect("request");
+    assert_eq!(response.status(), StatusCode::CREATED);
+}

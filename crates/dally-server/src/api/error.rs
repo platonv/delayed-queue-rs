@@ -1,5 +1,5 @@
 use axum::Json;
-use axum::extract::rejection::{JsonRejection, QueryRejection};
+use axum::extract::rejection::QueryRejection;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use serde_json::json;
@@ -52,12 +52,6 @@ impl From<dally_core::Error> for ApiError {
             }
         };
         Self::new(status, code, err.to_string())
-    }
-}
-
-impl From<JsonRejection> for ApiError {
-    fn from(rejection: JsonRejection) -> Self {
-        Self::invalid(rejection.body_text())
     }
 }
 

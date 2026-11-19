@@ -47,7 +47,10 @@ async fn second_storage_on_the_same_file_is_refused() {
         .err()
         .expect("second open should fail");
     assert!(matches!(err, Error::InvalidInput(_)), "got {err:?}");
-    assert!(err.to_string().contains("another dally server"), "got {err}");
+    assert!(
+        err.to_string().contains("another dally server"),
+        "got {err}"
+    );
 
     drop(first);
     SqliteStorage::open(&path, &ConnectOptions::default())
@@ -58,7 +61,8 @@ async fn second_storage_on_the_same_file_is_refused() {
 #[tokio::test]
 async fn messages_survive_reopening() {
     let path = database_path();
-    let service = |storage: SqliteStorage| Service::new(Arc::new(storage), QueueSettings::default());
+    let service =
+        |storage: SqliteStorage| Service::new(Arc::new(storage), QueueSettings::default());
     let emails = dally_core::QueueName::new("emails").expect("valid name");
 
     let first = service(
@@ -101,7 +105,12 @@ async fn connect_accepts_file_and_memory_urls() {
             .await
             .expect("schedule");
         assert_eq!(
-            service.get_queue(&emails).await.expect("queue").stats.scheduled,
+            service
+                .get_queue(&emails)
+                .await
+                .expect("queue")
+                .stats
+                .scheduled,
             1,
             "{url}"
         );

@@ -642,11 +642,7 @@ impl SqliteStorage {
 
 /// Moves running messages whose lease expired on their last attempt to
 /// `dead`. Runs before leasing, so they are never handed out again.
-async fn bury_expired(
-    tx: &mut Transaction<'_, Sqlite>,
-    queue: &QueueName,
-    now: i64,
-) -> Result<()> {
+async fn bury_expired(tx: &mut Transaction<'_, Sqlite>, queue: &QueueName, now: i64) -> Result<()> {
     sqlx::query(
         "UPDATE dally_messages SET
              status = 'dead',
@@ -807,7 +803,9 @@ mod tests {
         assert!(is_in_memory("sqlite://:memory:"));
         assert!(is_in_memory("sqlite://shared?mode=memory&cache=shared"));
         assert!(!is_in_memory("sqlite://dally.sqlite"));
-        assert!(!is_in_memory("sqlite:///var/lib/dally/dally.sqlite?mode=rwc"));
+        assert!(!is_in_memory(
+            "sqlite:///var/lib/dally/dally.sqlite?mode=rwc"
+        ));
     }
 
     #[test]

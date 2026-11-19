@@ -17,9 +17,28 @@ pub use error::ApiError;
 
 /// A JSON body whose errors come back in the API's error format, not as
 /// axum's plain-text rejections.
-#[derive(FromRequest)]
-#[from_request(via(axum::Json), rejection(ApiError))]
+///
+/// Unlike `axum::Json`, it does not insist on `Content-Type:
+/// application/json`, so `curl -d '{...}'` works without extra flags. The
+/// body is JSON on every endpoint, so the header adds nothing.
 struct Json<T>(T);
+
+impl<S, T> FromRequest<S> for Json<T>
+where
+    S: Send + Sync,
+    T: serde::de::DeserializeOwned,
+{
+    type Rejection = ApiError;
+
+    async fn from_request(request: axum::extract::Request, state: &S) -> ApiResult<Self> {
+        let body = Bytes::from_request(request, state)
+            .await
+            .map_err(|rejection| ApiError::invalid(rejection.body_text()))?;
+        serde_json::from_slice(&body)
+            .map(Json)
+            .map_err(|err| ApiError::invalid(format!("invalid JSON body: {err}")))
+    }
+}
 
 impl<T: serde::Serialize> axum::response::IntoResponse for Json<T> {
     fn into_response(self) -> axum::response::Response {

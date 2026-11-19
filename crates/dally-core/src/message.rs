@@ -257,13 +257,13 @@ impl ScheduleRequest {
     }
 
     pub(crate) fn validate(&self) -> Result<()> {
-        if let Some(key) = &self.idempotency_key {
-            if key.is_empty() || key.len() > Self::MAX_IDEMPOTENCY_KEY_LEN {
-                return Err(Error::invalid(format!(
-                    "idempotency_key must be 1 to {} bytes",
-                    Self::MAX_IDEMPOTENCY_KEY_LEN
-                )));
-            }
+        if let Some(key) = &self.idempotency_key
+            && (key.is_empty() || key.len() > Self::MAX_IDEMPOTENCY_KEY_LEN)
+        {
+            return Err(Error::invalid(format!(
+                "idempotency_key must be 1 to {} bytes",
+                Self::MAX_IDEMPOTENCY_KEY_LEN
+            )));
         }
         if self.max_attempts == Some(0) {
             return Err(Error::invalid("max_attempts must be at least 1"));

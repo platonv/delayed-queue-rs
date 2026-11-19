@@ -137,7 +137,9 @@ pub async fn connect(url: &str, options: &ConnectOptions) -> Result<Arc<dyn Stor
         }
         "sqlite" => {
             #[cfg(feature = "sqlite")]
-            return Ok(Arc::new(sqlite::SqliteStorage::connect(url, options).await?));
+            return Ok(Arc::new(
+                sqlite::SqliteStorage::connect(url, options).await?,
+            ));
             #[cfg(not(feature = "sqlite"))]
             return Err(missing_feature("sqlite"));
         }
