@@ -8,7 +8,7 @@ edition = "2024"
 rust-version = "1.94"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/platonv/dally"
-authors = ["Platon Vlad"]
+authors = ["Vlad Platon"]
 
 [workspace.dependencies]
 dally-client = { path = "crates/dally-client", version = "0.1.0" }

@@ -4,7 +4,7 @@
     "title": "dally",
     "description": "A job queue server. See docs/design.md and docs/semantics.md for how delivery works.",
     "contact": {
-      "name": "Platon Vlad"
+      "name": "Vlad Platon"
     },
     "license": {
       "name": "MIT OR Apache-2.0",
