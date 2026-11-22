@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}dally{% endblock %}</title>
+  <link rel="stylesheet" href="{{ base }}/assets/style.css">
+  <script src="{{ base }}/assets/htmx.min.js" defer></script>
+</head>
+<body>
+  <header>
+    <a class="brand" href="{{ base.home() }}">dally</a>
+    {% if signed_in %}
+    <form method="post" action="{{ base }}/logout"><button class="quiet">Log out</button></form>
+    {% endif %}
+  </header>
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

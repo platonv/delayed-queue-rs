@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Message {{ id }} · dally{% endblock %}
+{% block content %}
+<p class="crumbs"><a href="{{ base.home() }}">Queues</a> / <a href="{{ base }}/queues/{{ queue }}?status={{ status }}">{{ queue }}</a> /</p>
+<h1 class="mono">{{ id }}</h1>
+<p><span class="status {{ status }}">{{ status }}</span></p>
+
+{% if scheduled %}
+<div class="actions">
+  <form method="post" action="{{ base }}/messages/{{ id }}/run-now"><button>Run now</button></form>
+  <form method="post" action="{{ base }}/messages/{{ id }}/cancel"><button class="danger">Cancel</button></form>
+</div>
+{% endif %}
+
+<dl class="fields">
+  {% for (label, value) in fields %}
+  <dt>{{ label }}</dt><dd>{{ value }}</dd>
+  {% endfor %}
+</dl>
+
+{% if let Some(error) = last_error %}
+<h2>Last error</h2>
+<pre class="error">{{ error }}</pre>
+{% endif %}
+
+<h2>Payload</h2>
+<pre>{{ payload }}</pre>
+{% endblock %}

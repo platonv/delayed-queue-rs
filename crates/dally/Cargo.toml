@@ -1,0 +1,47 @@
+[package]
+name = "dally"
+description = "A job queue server: schedule work over HTTP, run it later"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+readme = "../../README.md"
+
+[features]
+default = ["postgres", "sqlite", "redis", "ui"]
+postgres = ["dally-server/postgres"]
+redis = ["dally-server/redis"]
+sqlite = ["dally-server/sqlite"]
+# The web UI, served by `dally server --ui` or `dally ui`.
+ui = ["dep:dally-ui", "dep:axum"]
+# Export traces over OTLP when OTEL_EXPORTER_OTLP_ENDPOINT is set.
+otel = [
+    "dep:opentelemetry",
+    "dep:opentelemetry_sdk",
+    "dep:opentelemetry-otlp",
+    "dep:tracing-opentelemetry",
+]
+
+[dependencies]
+anyhow.workspace = true
+axum = { workspace = true, optional = true }
+chrono.workspace = true
+clap.workspace = true
+dally-client.workspace = true
+dally-server.workspace = true
+dally-ui = { workspace = true, optional = true }
+humantime.workspace = true
+opentelemetry = { workspace = true, optional = true }
+opentelemetry-otlp = { workspace = true, optional = true }
+opentelemetry_sdk = { workspace = true, optional = true }
+serde.workspace = true
+serde_json.workspace = true
+tokio = { workspace = true, features = ["full"] }
+tracing.workspace = true
+tracing-opentelemetry = { workspace = true, optional = true }
+tracing-subscriber.workspace = true
+
+[lints]
+workspace = true

@@ -1,0 +1,23 @@
+<div id="queues" hx-get="{{ base }}/partials/queues" hx-trigger="every 5s" hx-swap="outerHTML">
+{% if rows.is_empty() %}
+  <p class="empty">No queues yet. Schedule a message and its queue appears here.</p>
+{% else %}
+  <table>
+    <thead>
+      <tr><th>Queue</th><th class="number">Scheduled</th><th class="number">Running</th><th class="number">Succeeded</th><th class="number">Dead</th><th></th></tr>
+    </thead>
+    <tbody>
+    {% for row in rows %}
+      <tr>
+        <td><a href="{{ base }}/queues/{{ row.name }}">{{ row.name }}</a></td>
+        <td class="number">{{ row.scheduled }}</td>
+        <td class="number">{{ row.running }}</td>
+        <td class="number">{{ row.succeeded }}</td>
+        <td class="number">{% if row.dead > 0 %}<a class="dead" href="{{ base }}/queues/{{ row.name }}?status=dead">{{ row.dead }}</a>{% else %}0{% endif %}</td>
+        <td>{% if row.paused %}<span class="badge">paused</span>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+{% endif %}
+</div>

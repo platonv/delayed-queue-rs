@@ -1,19 +1,64 @@
-[package]
-name = "delayed-queue-rs"
-version = "0.1.0"
-edition = "2018"
+[workspace]
+resolver = "3"
+members = ["crates/*"]
 
-[dependencies]
-uuid = { version = "1.8.0", features = ["v4", "fast-rng", "macro-diagnostics"] }
-anyhow = "1.0"
-tokio = { version = "1.20.0", features = ["full"]}
-dotenvy = "0.15.0"
-sqlx = { version = "0.7", features = [ "runtime-tokio", "postgres" ] }
-clap = { version = "4.5.4", features = [ "cargo" ] }
-actix-web = "4.0.0"
-actix-rt = "2.2.0"
-env_logger = "0.9.0"
-serde = { version = "1.0.172-alpha.0" }
-serde_json = { version = "1.0.117" }
-derive_more = "0.99.17"
-reqwest = "0.11"
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.94"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/platonv/dally"
+authors = ["Vlad Platon"]
+
+[workspace.dependencies]
+dally-client = { path = "crates/dally-client", version = "0.1.0" }
+dally-core = { path = "crates/dally-core", version = "0.1.0" }
+dally-server = { path = "crates/dally-server", version = "0.1.0" }
+dally-ui = { path = "crates/dally-ui", version = "0.1.0" }
+
+anyhow = "1.0.104"
+askama = "0.16.1"
+async-trait = "0.1.92"
+axum = { version = "0.8.9", features = ["macros"] }
+chrono = { version = "0.4.45", features = ["serde"] }
+chrono-tz = "0.10.4"
+clap = { version = "4.6.8", features = ["derive", "env"] }
+croner = "4.0.3"
+fastrand = "2.5.0"
+figment = { version = "0.10.19", features = ["toml", "env"] }
+futures-util = { version = "0.3.34", default-features = false }
+hex = "0.4.3"
+hmac = "0.13.0"
+humantime = "2.4.0"
+humantime-serde = "1.1.1"
+redis = { version = "1.8.2", default-features = false, features = ["script", "tokio-comp", "connection-manager", "tokio-rustls-comp"] }
+reqwest = { version = "0.13.5", default-features = false, features = ["json"] }
+# Only here to pick a crypto provider for the TLS connections redis makes.
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+sha2 = "0.11.1"
+sqlx = { version = "0.9.1", default-features = false, features = ["runtime-tokio", "macros", "chrono", "uuid", "json", "migrate"] }
+tempfile = "3.27.0"
+subtle = "2.6.1"
+opentelemetry = { version = "0.33.1", default-features = false, features = ["trace"] }
+opentelemetry-otlp = { version = "0.33.1", default-features = false, features = ["http-proto", "reqwest-blocking-client", "reqwest-rustls", "trace"] }
+opentelemetry_sdk = { version = "0.33.1", default-features = false, features = ["trace"] }
+prometheus-client = "0.26.0"
+utoipa = { version = "6.0.0", features = ["chrono", "uuid"] }
+thiserror = "2.0.21"
+tokio = { version = "1.54.1", features = ["sync", "time", "macros"] }
+tokio-util = "0.7.20"
+tower-http = { version = "0.7.1", features = ["trace", "limit"] }
+tracing = "0.1.44"
+tracing-opentelemetry = { version = "0.34.0", default-features = false }
+tracing-subscriber = { version = "0.3.23", features = ["env-filter", "json"] }
+url = "2.5.8"
+uuid = { version = "1.29.3", features = ["v4", "v7", "serde"] }
+
+[workspace.lints.rust]
+missing_docs = "warn"
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+unwrap_used = "warn"

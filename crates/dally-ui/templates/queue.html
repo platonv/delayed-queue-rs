@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}{{ name }} · dally{% endblock %}
+{% block content %}
+<p class="crumbs"><a href="{{ base.home() }}">Queues</a> /</p>
+<h1>{{ name }} {% if paused %}<span class="badge">paused</span>{% endif %}</h1>
+
+<div class="actions">
+  {% if paused %}
+  <form method="post" action="{{ base }}/queues/{{ name }}/resume"><button>Resume</button></form>
+  {% else %}
+  <form method="post" action="{{ base }}/queues/{{ name }}/pause"><button>Pause</button></form>
+  {% endif %}
+  {% if dead > 0 %}
+  <form method="post" action="{{ base }}/queues/{{ name }}/retry-dead"><button>Retry {{ dead }} dead</button></form>
+  {% endif %}
+</div>
+
+<dl class="fields">
+  {% for (label, value) in settings %}
+  <dt>{{ label }}</dt><dd>{{ value }}</dd>
+  {% endfor %}
+</dl>
+
+<nav class="tabs">
+  {% for tab in tabs %}
+  <a href="{{ base }}/queues/{{ name }}?status={{ tab.label }}"{% if tab.active %} class="active" aria-current="page"{% endif %}>{{ tab.label }} <span class="count">{{ tab.count }}</span></a>
+  {% endfor %}
+</nav>
+
+{% if rows.is_empty() %}
+<p class="empty">No {{ status }} messages.</p>
+{% else %}
+<table>
+  <thead>
+    <tr><th>Message</th><th>Attempts</th><th>Run at</th><th>Last error</th></tr>
+  </thead>
+  <tbody>
+  {% for row in rows %}
+    <tr>
+      <td><a class="mono" href="{{ base }}/messages/{{ row.id }}">{{ row.id }}</a></td>
+      <td>{{ row.attempts }}</td>
+      <td title="{{ row.run_at }}">{{ row.when }}</td>
+      <td class="error-text">{{ row.last_error }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% if let Some(next) = next %}
+<p><a href="{{ base }}/queues/{{ name }}?status={{ status }}&amp;before={{ next }}">Older messages</a></p>
+{% endif %}
+{% endif %}
+{% endblock %}

@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Log in · dally{% endblock %}
+{% block content %}
+<h1>Log in</h1>
+<p>This server needs an API key. A client key can look around; changing queues needs an admin key.</p>
+{% if let Some(error) = error %}<p class="error">{{ error }}</p>{% endif %}
+<form method="post" action="{{ base }}/login" class="login">
+  <label for="key">API key</label>
+  <input id="key" name="key" type="password" autocomplete="current-password" required autofocus>
+  <button>Log in</button>
+</form>
+{% endblock %}

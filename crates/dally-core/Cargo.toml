@@ -1,0 +1,42 @@
+[package]
+name = "dally-core"
+description = "Domain types, rules and storage backends for the dally job queue"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[features]
+default = []
+postgres = ["dep:sqlx", "sqlx/postgres"]
+redis = ["dep:redis", "dep:futures-util", "dep:rustls", "dep:url"]
+sqlite = ["dep:sqlx", "sqlx/sqlite"]
+# ToSchema derives on the wire types, for generating an OpenAPI spec.
+openapi = ["dep:utoipa"]
+
+[dependencies]
+async-trait.workspace = true
+chrono.workspace = true
+fastrand.workspace = true
+futures-util = { workspace = true, optional = true }
+humantime-serde.workspace = true
+redis = { workspace = true, optional = true }
+rustls = { workspace = true, optional = true }
+serde.workspace = true
+serde_json.workspace = true
+sqlx = { workspace = true, optional = true }
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+url = { workspace = true, optional = true }
+utoipa = { workspace = true, optional = true }
+uuid.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+tokio = { workspace = true, features = ["full"] }
+
+[lints]
+workspace = true

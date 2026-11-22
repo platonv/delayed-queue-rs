@@ -1,0 +1,2116 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "dally",
+    "description": "A job queue server. See docs/design.md and docs/semantics.md for how delivery works.",
+    "contact": {
+      "name": "Vlad Platon"
+    },
+    "license": {
+      "name": "MIT OR Apache-2.0",
+      "identifier": "MIT OR Apache-2.0"
+    },
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/healthz": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "The process is up.",
+        "operationId": "healthz",
+        "responses": {
+          "200": {
+            "description": "Up",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {}
+        ]
+      }
+    },
+    "/readyz": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "The process is up and can reach storage.",
+        "operationId": "readyz",
+        "responses": {
+          "200": {
+            "description": "Ready",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Storage is unavailable",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {}
+        ]
+      }
+    },
+    "/v1/messages": {
+      "get": {
+        "tags": [
+          "messages"
+        ],
+        "summary": "`GET /v1/messages?queue=&status=&before=&limit=`, newest first. Pass the\nresponse's `next` as `before` to get the following page.",
+        "operationId": "list",
+        "parameters": [
+          {
+            "name": "queue",
+            "in": "query",
+            "description": "Only messages in this queue.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "description": "Only messages in this status.",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/Status"
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "description": "Only messages older than this one: pass the previous page's `next`.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "At most this many messages, up to 500. Defaults to 50.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One page, newest first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_Message"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or unknown API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Storage is unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/messages/{id}": {
+      "get": {
+        "tags": [
+          "messages"
+        ],
+        "summary": "`GET /v1/messages/{id}`.",
+        "operationId": "get",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Message id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or unknown API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Storage is unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "messages"
+        ],
+        "summary": "`DELETE /v1/messages/{id}` cancels a scheduled message.",
+        "operationId": "cancel",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Message id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cancelled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or unknown API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The lease or status does not allow this",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Storage is unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "messages"
+        ],
+        "summary": "`PATCH /v1/messages/{id}` with `{\"delay\": \"1h\"}` or `{\"run_at\": \"...\"}`.\nAn empty object runs it now.",
+        "operationId": "reschedule",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Message id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RescheduleBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Rescheduled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or unknown API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The lease or status does not allow this",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Storage is unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/messages/{id}/ack": {
+      "post": {
+        "tags": [
+          "messages"
+        ],
+        "summary": "`POST /v1/messages/{id}/ack` with `{\"lease\": \"...\"}`.",
+        "operationId": "ack",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Message id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AckBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Succeeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or unknown API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The lease or status does not allow this",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Storage is unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/messages/{id}/nack": {
+      "post": {
+        "tags": [
+          "messages"
+        ],
+        "summary": "`POST /v1/messages/{id}/nack` with `{\"lease\": \"...\", \"error\": \"...\",\n\"retry_in\": \"30s\"}`. Only `lease` is required.",
+        "operationId": "nack",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Message id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NackRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Scheduled for a retry, or dead",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or unknown API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The lease or status does not allow this",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Storage is unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/queues": {
+      "get": {
+        "tags": [
+          "queues"
+        ],
+        "summary": "`GET /v1/queues`: every queue with its message counts.",
+        "operationId": "list",
+        "responses": {
+          "200": {
+            "description": "Every queue with its message counts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueueList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or unknown API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Storage is unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/queues/{queue}": {
+      "get": {
+        "tags": [
+          "queues"
+        ],
+        "summary": "`GET /v1/queues/{queue}`: settings and message counts.",
+        "operationId": "get",
+        "parameters": [
+          {
+            "name": "queue",
+            "in": "path",
+            "description": "Queue name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Settings and message counts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueueSummary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or unknown API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Storage is unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "queues"
+        ],
+        "summary": "`PUT /v1/queues/{queue}`: creates the queue or replaces its settings.\nFields left out get their defaults, not their current values.",
+        "operationId": "put",
+        "parameters": [
+          {
+            "name": "queue",
+            "in": "path",
+            "description": "Queue name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QueueSettings"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Created or updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Queue"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or unknown API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Needs an admin key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Storage is unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/queues/{queue}/dead/retry": {
+      "post": {
+        "tags": [
+          "queues"
+        ],
+        "summary": "`POST /v1/queues/{queue}/dead/retry` with an optional `{\"ids\": [...]}`.\nWithout ids, retries every dead message in the queue.",
+        "operationId": "retry_dead",
+        "parameters": [
+          {
+            "name": "queue",
+            "in": "path",
+            "description": "Queue name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "Optional; without ids, every dead message is retried",
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/RetryBody"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "How many messages were retried",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Retried"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or unknown API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Needs an admin key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Storage is unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/queues/{queue}/messages": {
+      "get": {
+        "tags": [
+          "messages"
+        ],
+        "summary": "`GET /v1/queues/{queue}/messages?status=&before=&limit=`.",
+        "operationId": "list_in_queue",
+        "parameters": [
+          {
+            "name": "queue",
+            "in": "path",
+            "description": "Queue name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "description": "Only messages in this status.",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/Status"
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "description": "Only messages older than this one: pass the previous page's `next`.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "At most this many messages, up to 500. Defaults to 50.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One page, newest first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_Message"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or unknown API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Storage is unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "messages"
+        ],
+        "summary": "`POST /v1/queues/{queue}/messages` takes one message or an array of them.",
+        "description": "One message: `201 Created` with the message, or `200 OK` with the existing\nmessage if its idempotency key was already used.\n\nAn array: `200 OK` with `{\"messages\": [{\"created\": bool, \"message\": ...}]}`\nin the same order.",
+        "operationId": "schedule",
+        "parameters": [
+          {
+            "name": "queue",
+            "in": "path",
+            "description": "Queue name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScheduleBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The existing message, if its idempotency key was already used; or the results of a batch",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleResponse"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Scheduled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or unknown API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Storage is unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/queues/{queue}/pause": {
+      "post": {
+        "tags": [
+          "queues"
+        ],
+        "summary": "`POST /v1/queues/{queue}/pause`.",
+        "operationId": "pause",
+        "parameters": [
+          {
+            "name": "queue",
+            "in": "path",
+            "description": "Queue name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paused",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Queue"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or unknown API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Needs an admin key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Storage is unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/queues/{queue}/poll": {
+      "post": {
+        "tags": [
+          "messages"
+        ],
+        "summary": "`POST /v1/queues/{queue}/poll` with an optional body\n`{\"limit\": 10, \"wait\": \"20s\"}`.",
+        "operationId": "poll",
+        "parameters": [
+          {
+            "name": "queue",
+            "in": "path",
+            "description": "Queue name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "Optional; defaults to one message and no waiting",
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/PollBody"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Leased messages, possibly none",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Polled"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or unknown API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Storage is unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/queues/{queue}/resume": {
+      "post": {
+        "tags": [
+          "queues"
+        ],
+        "summary": "`POST /v1/queues/{queue}/resume`.",
+        "operationId": "resume",
+        "parameters": [
+          {
+            "name": "queue",
+            "in": "path",
+            "description": "Queue name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resumed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Queue"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or unknown API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Needs an admin key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Storage is unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AckBody": {
+        "type": "object",
+        "required": [
+          "lease"
+        ],
+        "properties": {
+          "lease": {
+            "$ref": "#/components/schemas/LeaseToken",
+            "description": "The lease token from the poll."
+          }
+        },
+        "additionalProperties": false
+      },
+      "Backoff": {
+        "type": "object",
+        "description": "Exponential backoff with jitter: attempt `n` waits about\n`min(base * 2^(n - 1), cap)`, give or take 20%.",
+        "properties": {
+          "base": {
+            "type": "string",
+            "description": "The delay after the first failed attempt.",
+            "default": {
+              "nanos": 0,
+              "secs": 5
+            },
+            "example": "5s"
+          },
+          "cap": {
+            "type": "string",
+            "description": "The longest delay between attempts.",
+            "default": {
+              "nanos": 0,
+              "secs": 3600
+            },
+            "example": "1h"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Batch": {
+        "type": "object",
+        "required": [
+          "messages"
+        ],
+        "properties": {
+          "messages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Scheduled"
+            }
+          }
+        }
+      },
+      "ErrorBody": {
+        "type": "object",
+        "description": "The error body every endpoint uses.",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ErrorDetail"
+          }
+        }
+      },
+      "ErrorDetail": {
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "Stable, for programs: `invalid_input`, `queue_not_found`,\n`message_not_found`, `lease_mismatch`, `invalid_status`,\n`unauthorized`, `forbidden` or `storage_unavailable`."
+          },
+          "message": {
+            "type": "string",
+            "description": "For people. May change between versions."
+          }
+        }
+      },
+      "LeaseToken": {
+        "type": "string",
+        "description": "The token that proves a worker holds a message. It changes every time the\nmessage is leased, so a worker whose lease expired cannot ack a message\nthat was handed to someone else.",
+        "example": "0f8e2c4b9d1a4e7f8a3b5c6d7e8f9a0b"
+      },
+      "Leased": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Message",
+            "description": "The message."
+          },
+          {
+            "type": "object",
+            "required": [
+              "lease"
+            ],
+            "properties": {
+              "lease": {
+                "$ref": "#/components/schemas/LeaseToken",
+                "description": "The proof that this worker holds it."
+              }
+            }
+          }
+        ],
+        "description": "A message handed to a worker, with the token it needs to ack or nack it."
+      },
+      "Message": {
+        "type": "object",
+        "description": "A message as stored.",
+        "required": [
+          "id",
+          "queue",
+          "payload",
+          "status",
+          "priority",
+          "attempts",
+          "max_attempts",
+          "visibility_timeout",
+          "run_at",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "attempts": {
+            "type": "integer",
+            "format": "int32",
+            "description": "How many times it has been leased.",
+            "minimum": 0
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When it was scheduled."
+          },
+          "finished_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When it reached a finished status."
+          },
+          "id": {
+            "$ref": "#/components/schemas/MessageId",
+            "description": "The message's id."
+          },
+          "idempotency_key": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The key that prevents duplicates, if one was given."
+          },
+          "last_error": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The error reported by the last failed attempt."
+          },
+          "lease_expires_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When the current lease expires, while it is running."
+          },
+          "max_attempts": {
+            "type": "integer",
+            "format": "int32",
+            "description": "How many attempts it gets before it is marked dead.",
+            "minimum": 0
+          },
+          "payload": {
+            "description": "What the worker gets."
+          },
+          "priority": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Higher priorities are delivered first."
+          },
+          "queue": {
+            "$ref": "#/components/schemas/QueueName",
+            "description": "The queue it belongs to."
+          },
+          "run_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When it is next due."
+          },
+          "status": {
+            "$ref": "#/components/schemas/Status",
+            "description": "Where it is in its lifecycle."
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When it last changed."
+          },
+          "visibility_timeout": {
+            "type": "string",
+            "description": "How long each lease lasts.",
+            "example": "30s"
+          }
+        }
+      },
+      "MessageId": {
+        "type": "string",
+        "format": "uuid",
+        "description": "A message id. Ids are UUIDv7, so sorting them sorts messages by creation\ntime."
+      },
+      "NackRequest": {
+        "type": "object",
+        "description": "What a worker reports when an attempt fails.",
+        "required": [
+          "lease"
+        ],
+        "properties": {
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "What went wrong. Shown in the UI and kept on the message."
+          },
+          "lease": {
+            "$ref": "#/components/schemas/LeaseToken",
+            "description": "The lease that proves the worker holds the message."
+          },
+          "retry_in": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Retry after this delay instead of the queue's backoff.",
+            "example": "30s"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Page_Message": {
+        "type": "object",
+        "description": "One page of a listing, newest first.",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "description": "A message as stored.",
+              "required": [
+                "id",
+                "queue",
+                "payload",
+                "status",
+                "priority",
+                "attempts",
+                "max_attempts",
+                "visibility_timeout",
+                "run_at",
+                "created_at",
+                "updated_at"
+              ],
+              "properties": {
+                "attempts": {
+                  "type": "integer",
+                  "format": "int32",
+                  "description": "How many times it has been leased.",
+                  "minimum": 0
+                },
+                "created_at": {
+                  "type": "string",
+                  "format": "date-time",
+                  "description": "When it was scheduled."
+                },
+                "finished_at": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "date-time",
+                  "description": "When it reached a finished status."
+                },
+                "id": {
+                  "$ref": "#/components/schemas/MessageId",
+                  "description": "The message's id."
+                },
+                "idempotency_key": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "The key that prevents duplicates, if one was given."
+                },
+                "last_error": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "The error reported by the last failed attempt."
+                },
+                "lease_expires_at": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "date-time",
+                  "description": "When the current lease expires, while it is running."
+                },
+                "max_attempts": {
+                  "type": "integer",
+                  "format": "int32",
+                  "description": "How many attempts it gets before it is marked dead.",
+                  "minimum": 0
+                },
+                "payload": {
+                  "description": "What the worker gets."
+                },
+                "priority": {
+                  "type": "integer",
+                  "format": "int32",
+                  "description": "Higher priorities are delivered first."
+                },
+                "queue": {
+                  "$ref": "#/components/schemas/QueueName",
+                  "description": "The queue it belongs to."
+                },
+                "run_at": {
+                  "type": "string",
+                  "format": "date-time",
+                  "description": "When it is next due."
+                },
+                "status": {
+                  "$ref": "#/components/schemas/Status",
+                  "description": "Where it is in its lifecycle."
+                },
+                "updated_at": {
+                  "type": "string",
+                  "format": "date-time",
+                  "description": "When it last changed."
+                },
+                "visibility_timeout": {
+                  "type": "string",
+                  "description": "How long each lease lasts.",
+                  "example": "30s"
+                }
+              }
+            },
+            "description": "The items on this page."
+          },
+          "next": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/MessageId",
+                "description": "The cursor for the next page, if there is one."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "PollBody": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "Lease at most this many messages, 1 to 100. Defaults to 1.",
+            "default": null,
+            "minimum": 0
+          },
+          "wait": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "If nothing is due, wait up to this long (at most 30s) for a message.",
+            "default": null,
+            "example": "20s"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Polled": {
+        "type": "object",
+        "required": [
+          "messages"
+        ],
+        "properties": {
+          "messages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Leased"
+            }
+          }
+        }
+      },
+      "PushSettings": {
+        "type": "object",
+        "description": "Where and how to push messages from a queue.",
+        "required": [
+          "url"
+        ],
+        "properties": {
+          "concurrency": {
+            "type": "integer",
+            "format": "int32",
+            "description": "How many requests to have in flight at once, per server.",
+            "minimum": 0
+          },
+          "secret": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "When set, each request is signed with HMAC-SHA256 using this secret."
+          },
+          "timeout": {
+            "type": "string",
+            "description": "How long to wait for the endpoint to respond.",
+            "example": "30s"
+          },
+          "url": {
+            "type": "string",
+            "description": "The endpoint that receives each message as a POST request."
+          }
+        },
+        "additionalProperties": false
+      },
+      "Queue": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/QueueSettings",
+            "description": "How messages in this queue are delivered."
+          },
+          {
+            "type": "object",
+            "required": [
+              "name",
+              "created_at",
+              "updated_at"
+            ],
+            "properties": {
+              "created_at": {
+                "type": "string",
+                "format": "date-time",
+                "description": "When the queue was created."
+              },
+              "name": {
+                "$ref": "#/components/schemas/QueueName",
+                "description": "The queue's name."
+              },
+              "updated_at": {
+                "type": "string",
+                "format": "date-time",
+                "description": "When the settings last changed."
+              }
+            }
+          }
+        ],
+        "description": "A queue as stored, with its settings."
+      },
+      "QueueList": {
+        "type": "object",
+        "required": [
+          "queues"
+        ],
+        "properties": {
+          "queues": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QueueSummary"
+            }
+          }
+        }
+      },
+      "QueueName": {
+        "type": "string",
+        "description": "The name of a queue: 1 to 100 ASCII letters, digits, `-`, `_` or `.`.\n\nThe character set is deliberately small so names are safe in URLs, Redis\nkeys and metric labels without escaping.",
+        "example": "emails",
+        "pattern": "^[A-Za-z0-9._-]{1,100}$"
+      },
+      "QueueSettings": {
+        "type": "object",
+        "description": "The settings of a queue. Every field has a default, so a queue created\nimplicitly by scheduling a message works without configuration.",
+        "properties": {
+          "backoff": {
+            "$ref": "#/components/schemas/Backoff",
+            "description": "How long to wait before retrying a failed attempt.",
+            "default": {
+              "base": "5s",
+              "cap": "1h"
+            }
+          },
+          "max_attempts": {
+            "type": "integer",
+            "format": "int32",
+            "description": "How many times a message is attempted before it is marked dead.",
+            "default": 5,
+            "minimum": 0
+          },
+          "paused": {
+            "type": "boolean",
+            "description": "A paused queue accepts new messages but delivers none.",
+            "default": false
+          },
+          "push": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/PushSettings",
+                "description": "When set, the server delivers messages by POSTing them to this endpoint\ninstead of waiting for workers to poll."
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "retention": {
+            "type": "string",
+            "description": "How long finished messages are kept before they are deleted. This is\nalso how long idempotency keys are remembered.",
+            "default": {
+              "nanos": 0,
+              "secs": 604800
+            },
+            "example": "7days"
+          },
+          "visibility_timeout": {
+            "type": "string",
+            "description": "How long a lease lasts. A message that is not acked or nacked in this\ntime is handed to another worker.",
+            "default": {
+              "nanos": 0,
+              "secs": 30
+            },
+            "example": "30s"
+          }
+        },
+        "additionalProperties": false
+      },
+      "QueueStats": {
+        "type": "object",
+        "description": "How many messages a queue holds in each status.",
+        "required": [
+          "scheduled",
+          "running",
+          "succeeded",
+          "cancelled",
+          "dead"
+        ],
+        "properties": {
+          "cancelled": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Cancelled before running.",
+            "minimum": 0
+          },
+          "dead": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Out of attempts.",
+            "minimum": 0
+          },
+          "running": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Leased by a worker.",
+            "minimum": 0
+          },
+          "scheduled": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Waiting to run, now or later.",
+            "minimum": 0
+          },
+          "succeeded": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Finished successfully.",
+            "minimum": 0
+          }
+        }
+      },
+      "QueueSummary": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Queue",
+            "description": "The queue."
+          },
+          {
+            "type": "object",
+            "required": [
+              "stats"
+            ],
+            "properties": {
+              "stats": {
+                "$ref": "#/components/schemas/QueueStats",
+                "description": "Its message counts."
+              }
+            }
+          }
+        ],
+        "description": "A queue together with its message counts."
+      },
+      "RescheduleBody": {
+        "type": "object",
+        "properties": {
+          "delay": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Run after this delay. Cannot be combined with `run_at`.",
+            "example": "1h"
+          },
+          "run_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Run at this time. With neither field, the message runs now."
+          }
+        },
+        "additionalProperties": false
+      },
+      "Retried": {
+        "type": "object",
+        "required": [
+          "retried"
+        ],
+        "properties": {
+          "retried": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "RetryBody": {
+        "type": "object",
+        "properties": {
+          "ids": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Only these messages. Without it, every dead message in the queue.",
+            "default": null
+          }
+        },
+        "additionalProperties": false
+      },
+      "ScheduleBody": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ScheduleRequest",
+            "description": "A single message."
+          },
+          {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScheduleRequest"
+            },
+            "description": "A batch."
+          }
+        ],
+        "description": "One message, or an array of up to 100."
+      },
+      "ScheduleRequest": {
+        "type": "object",
+        "description": "A request to schedule a message, as clients send it.",
+        "required": [
+          "payload"
+        ],
+        "properties": {
+          "delay": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Run after this delay. Cannot be combined with `run_at`.",
+            "example": "10m"
+          },
+          "idempotency_key": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Scheduling twice with the same key in the same queue creates only one\nmessage."
+          },
+          "max_attempts": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "Overrides the queue's `max_attempts` for this message.",
+            "minimum": 0
+          },
+          "payload": {
+            "description": "What the worker gets."
+          },
+          "priority": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Higher priorities are delivered first. Defaults to 0."
+          },
+          "run_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Run at this time. Cannot be combined with `delay`."
+          },
+          "visibility_timeout": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Overrides the queue's `visibility_timeout` for this message.",
+            "example": "2m"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ScheduleResponse": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/Message",
+            "description": "The stored message."
+          },
+          {
+            "$ref": "#/components/schemas/Batch",
+            "description": "One result per scheduled message."
+          }
+        ],
+        "description": "The message for a single schedule, or the results in order for a batch."
+      },
+      "Scheduled": {
+        "type": "object",
+        "description": "The result of scheduling one message.",
+        "required": [
+          "message",
+          "created"
+        ],
+        "properties": {
+          "created": {
+            "type": "boolean",
+            "description": "False when a message with the same idempotency key already existed."
+          },
+          "message": {
+            "$ref": "#/components/schemas/Message",
+            "description": "The stored message: the new one, or the existing one with the same\nidempotency key."
+          }
+        }
+      },
+      "Status": {
+        "type": "string",
+        "description": "Where a message is in its lifecycle. See `docs/design.md` for the diagram.",
+        "enum": [
+          "scheduled",
+          "running",
+          "succeeded",
+          "cancelled",
+          "dead"
+        ]
+      }
+    },
+    "securitySchemes": {
+      "bearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  },
+  "security": [
+    {
+      "bearer": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "messages",
+      "description": "Scheduling, leasing and inspecting messages"
+    },
+    {
+      "name": "queues",
+      "description": "Queue settings and dead messages"
+    },
+    {
+      "name": "health",
+      "description": "Probes for load balancers and orchestrators"
+    }
+  ]
+}

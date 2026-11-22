@@ -1,0 +1,49 @@
+[package]
+name = "dally-server"
+description = "HTTP server and background tasks for the dally job queue"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[features]
+default = []
+postgres = ["dally-core/postgres"]
+redis = ["dally-core/redis"]
+sqlite = ["dally-core/sqlite"]
+
+[dependencies]
+axum.workspace = true
+chrono.workspace = true
+chrono-tz.workspace = true
+croner.workspace = true
+dally-core = { workspace = true, features = ["openapi"] }
+figment.workspace = true
+hex.workspace = true
+hmac.workspace = true
+humantime-serde.workspace = true
+prometheus-client.workspace = true
+utoipa.workspace = true
+uuid.workspace = true
+reqwest = { workspace = true, features = ["rustls"] }
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+subtle.workspace = true
+thiserror.workspace = true
+tokio = { workspace = true, features = ["full"] }
+tokio-util.workspace = true
+tower-http.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+sqlx = { workspace = true, features = ["postgres"] }
+figment = { workspace = true, features = ["test"] }
+dally-core = { workspace = true, features = ["postgres", "sqlite"] }
+tempfile.workspace = true
+reqwest.workspace = true
+
+[lints]
+workspace = true
