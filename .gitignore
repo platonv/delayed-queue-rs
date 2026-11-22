@@ -2,3 +2,8 @@
 *.sqlite
 *.sqlite-shm
 *.sqlite-wal
+
+# Local environment. Copy .env.example to .env; never commit real values.
+.env
+.env.*
+!.env.example
